@@ -1,0 +1,9 @@
+# temp files
+*#
+*~
+
+# node modules
+node_modules
+
+# The personal config file
+config.js

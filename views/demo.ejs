@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title><%=title%></title>
+    <link rel="stylesheet" href="<%=public_root%>/stylesheets/demo.css">
+    <script src="http://code.jquery.com/jquery.min.js"></script>
+    <script src="<%=public_root%>/javascripts/requestAnimationFrame.js"></script>
+    <script src="<%=public_root%>/javascripts/Detector.js"></script>
+    <script src="<%=public_root%>/javascripts/Stats.js"></script>
+    <script src="<%=public_root%>/javascripts/Three.js"></script>
+    <script src="<%=public_root%>/javascripts/AgxControls.js"></script>
+    <script src="<%=public_root%>/javascripts/m3d.js"></script>
+  </head>
+  <body>
+    <script>
+$(document).ready(function () {
+
+    var world = new M3D.WebSocketWorld("ws://<%=websockethost%>:<%=websocketport%>");
+    var renderer = new M3D.Renderer(world);
+    renderer.start();
+
+    // Stats
+    var $stats = $("<div id=\"stats\"></div>");
+    $("body").append( $stats );
+    $stats.css({"z-index":1000,position:"absolute",right:0,top:0});
+
+    world.addEventListener("opensocket",function(){
+	$("#stats").html("Connected");
+    });
+
+    // Update stats loop
+    var updateStats = setInterval(function(){
+	var round = function(num,dec){
+	    var pow = Math.pow(10,dec);
+	    return Math.round(num*pow)/pow;
+	}
+	var now = new Date().getTime();
+	$stats.html(round(world.downStats.average(now-1000),2)+" kb/s down, "+
+		    round(world.upStats.average(now-1000),2)+" kb/s up, "+
+		    round(1000*world.messageCountStats.frequency(now-1000),2)+" messages/s");
+    },1000);
+
+    world.addEventListener("closesocket", function(){
+	clearInterval(updateStats);
+	$("#stats").html("Disconnected. Refresh page to try again.");
+    });
+});
+    </script>
+  </body>
+</html>

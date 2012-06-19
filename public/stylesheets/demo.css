@@ -1,0 +1,65 @@
+* {
+    margin:0;
+    padding:0;
+}
+
+html {
+    overflow: hidden;
+}
+
+body {
+    background: #000;
+    color: #fff;
+    font: 300 100.1% "Helvetica Neue", Helvetica, "Arial Unicode MS", Arial, sans-serif;
+}
+
+h1 {
+    font-size:1.5em;
+}
+
+div.info {
+    width:300px;
+    margin-left:auto;
+    margin-right:auto;
+    margin-top:100px;
+    background-color:#222;
+    border-radius:10px;
+    padding:10px 20px;
+}
+
+a, a:link {
+    text-decoration:none;
+    color:white;
+}
+
+div.info li  {
+    text-align:center;
+    display:block;
+    margin:10px auto;
+    text-decoration:none;
+    padding:10px 50px;
+    border:1px;
+    background:#2C2C29;
+    font: bold 18px Helvetica,Georgia,serif;
+    color:#FFF;
+    clear:both;
+    border-radius:5px;
+    background-image: linear-gradient(bottom, rgb(44,44,41) 0%, rgb(122,122,112) 100%, rgb(44,44,41) 100%);
+    background-image: -o-linear-gradient(bottom, rgb(44,44,41) 0%, rgb(122,122,112) 100%, rgb(44,44,41) 100%);
+    background-image: -moz-linear-gradient(bottom, rgb(44,44,41) 0%, rgb(122,122,112) 100%, rgb(44,44,41) 100%);
+    background-image: -webkit-linear-gradient(bottom, rgb(44,44,41) 0%, rgb(122,122,112) 100%, rgb(44,44,41) 100%);
+    background-image: -ms-linear-gradient(bottom, rgb(44,44,41) 0%, rgb(122,122,112) 100%, rgb(44,44,41) 100%);
+    
+    background-image: -webkit-gradient(
+	linear,
+	left bottom,
+	left top,
+	color-stop(0, rgb(44,44,41)),
+	color-stop(1, rgb(122,122,112)),
+	color-stop(1, rgb(44,44,41))
+    );
+}
+
+p {
+    margin:5px 5px 10px 5px;
+}
