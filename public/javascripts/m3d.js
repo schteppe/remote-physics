@@ -729,26 +729,106 @@ M3D.EventTarget = function () {
 /**
  * @class World
  * @brief A description of a physics world
+ * @param RPC.Remote remote
  */
-M3D.World = function(){
+M3D.World = function(remote){
     M3D.EventTarget.call(this); // extend EventTarget
     var that = this;
     var idCount = 0;
+
+    /**
+     * @property RPC.Remote remote
+     * @memberof World
+     * @brief A remote sync RPC object
+     */
+    this.remote = remote;
+    if(remote){
+	remote.addEventListener('command',function(e){
+	    switch(e.command.type){
+	    case remote.COLLISION_CREATESHAPE:
+		switch(e.command.shapeType){
+		case M3D.Shape.SPHERE:
+		    var s = new M3D.Sphere(e.command.radius);
+		    s.id = e.command.id;
+		    break;
+		default:
+		    throw new Error("Could not recognize shape type: "+e.command.shapeType);
+		    break;
+		}
+		that.shapes.push(s);
+		break;
+
+	    case remote.WORLD_CREATEBODY:
+		var rb = new M3D.RigidBody(that.getShapeById(e.command.shapeId),
+					   e.command.mass);
+		rb.id = e.command.id;
+		that.bodies.push(rb);
+		break;
+
+	    case remote.BODY_SUBSCRIBE:
+		that.getRigidBodyById(e.command.id).sync = true;
+		break;
+
+	    case remote.BODY_UNSUBSCRIBE:
+		that.getRigidBodyById(e.command.id).sync = false;
+		break;
+
+	    case remote.WORLD_STEP:
+		// Cannot do much about this command here.
+		// Implement in subclasses!
+		break;
+
+	    case remote.WORLD_UPDATECOORDS:
+		// Update all body positions
+		var positions = e.command.positions;
+		var ids = e.command.ids;
+		var quats = e.command.quats;
+		for(var i=0; i<ids.length; i++){
+		    var id = ids[i],
+		    x = positions[3*i],
+		    y = positions[3*i+1],
+		    z = positions[3*i+2],
+		    qx = quats[4*i],
+		    qy = quats[4*i+1],
+		    qz = quats[4*i+2],
+		    qw = quats[4*i+3];
+		    var rb = that.getRigidBodyById(id);
+		    if(!rb)
+			throw new Error("Rigid body id="+id+" not found");
+		    rb.position.x = x;
+		    rb.position.y = y;
+		    rb.position.z = z;
+		    rb.quaternion.x = qx;
+		    rb.quaternion.y = qy;
+		    rb.quaternion.z = qz;
+		    rb.quaternion.w = qw;
+		}
+		break;
+
+	    default:
+		console.log("Could not recognize command: ",e.command);
+		break;
+	    }
+	});
+    }
 
     /**
      * @property array bodies
      * @memberof World
      */
     this.bodies = [];
-
-    /**
-     * @fn addBody
-     * @memberof World
-     * @brief Add a body to the simulation
-     */
-    this.addBody = function(body){
-	body.id = idCount++;
-	this.bodies.push(body);
+    this.shapes = [];
+    
+    this.getShapeById = function(id){
+	for(var i=0; i<this.shapes.length; i++)
+	    if(this.shapes[i].id == id)
+		return this.shapes[i];
+    }
+    
+    this.getRigidBodyById = function(id){
+	for(var i=0; i<this.bodies.length; i++)
+	    if(this.bodies[i].id == id)
+		return this.bodies[i];
     }
 
     /**
@@ -759,6 +839,76 @@ M3D.World = function(){
     this.clear = function(){
 	this.bodies = [];
 	idCount = 0;
+    };
+
+    this.createSphereShape = function(radius){
+	var s = new M3D.Sphere(radius);
+	s.remote = this.remote;
+	s.id = idCount++;
+	this.remote.exec({
+	    type : remote.COLLISION_CREATESHAPE,
+	    id : s.id,
+	    shapeType : M3D.Shape.SPHERE,
+	    radius : radius
+	});
+	return s;
+    };
+
+    this.step = function(dt,callback){
+	this.remote.exec({type:remote.WORLD_STEP,dt:dt},callback);
+    };
+
+    this.createRigidBody = function(shape,mass){
+	var r = new M3D.RigidBody(shape,mass);
+	r.id = idCount++;
+	r.remote = this.remote;
+	this.bodies.push(r);
+	this.remote.exec({type:remote.WORLD_CREATEBODY,id:r.id,shapeId:shape.id,mass:mass});
+	return r;
+    };
+
+    /**
+     * @brief Sets all body coordinates (quats and positions)
+     * @param array ids
+     * @param array positions
+     * @param array quats
+     */
+    this.setAllBodyCoordinates = function(ids,positions,quats){
+	var changed = []; // So we can keep track of bodies that changed position
+	for(var i=0; i<ids.length; i++){
+	    var id = ids[i],
+	    x = positions[3*i],
+	    y = positions[3*i+1],
+	    z = positions[3*i+2],
+	    qx = quats[4*i],
+	    qy = quats[4*i+1],
+	    qz = quats[4*i+2],
+	    qw = quats[4*i+3];
+	    var rb = this.getRigidBodyById(id);
+	    if(rb.sync &&
+	       (rb.position.x != x || 
+		rb.position.y != y || 
+		rb.position.z != z ||
+		rb.quaternion.x != qx || 
+		rb.quaternion.y != qy || 
+		rb.quaternion.z != qz || 
+		rb.quaternion.w != qw))
+		changed.push(true);
+	    else
+		changed.push(false);
+
+	    // Set local
+	    rb.position.x = x;
+	    rb.position.y = y;
+	    rb.position.z = z;
+
+	    rb.quaternion.x = x;
+	    rb.quaternion.y = y;
+	    rb.quaternion.z = z;
+	    rb.quaternion.w = w;
+	}
+	// Set remote
+	remote.exec({type:remote.WORLD_UPDATECOORDS,positions:positions,quats:quats,ids:ids});
     };
 
     /**
@@ -863,22 +1013,25 @@ M3D.World.SHOOT     = 5; // Origin +direction, 6 x Float32
  * @brief Rigid body.
  * @param Shape shape
  */
-M3D.RigidBody = function(shape){
+M3D.RigidBody = function(shape,mass){
     /**
      * @property int id
      * @memberof RigidBody
      */
     this.id = -1;
+
     /**
      * @property Shape shape
      * @memberof RigidBody
      */
     this.shape = shape;
+
     /**
      * @property Vec3 position
      * @memberof RigidBody
      */
     this.position = new M3D.Vec3();
+
     /**
      * @property Quat quaternion
      * @memberof RigidBody
@@ -896,6 +1049,20 @@ M3D.RigidBody = function(shape){
      * @memberof RigidBody
      */
     this.rotVelocity = new M3D.Vec3();
+
+    // remote sync object
+    this.remote = null;
+    this.sync = true;
+
+    this.setAutoUpdate = function(autoUpdate){
+	if(this.sync != autoUpdate){
+	    this.sync = autoUpdate;
+	    if(autoUpdate)
+		this.remote.exec({type:this.remote.BODY_SUBSCRIBE,id:this.id});
+	    else
+		this.remote.exec({type:this.remote.BODY_UNSUBSCRIBE,id:this.id});
+	}
+    };
 }
 
 /**
@@ -1211,9 +1378,10 @@ M3D.WebSocketWorld.prototype = new M3D.World();/**
  * @param string command The command for starting Agx
  * @param Array flags Flags to be passed when starting agx, e.g. ["filename.lua","--agxOnly"]
  * @param int id A unique id for this session. Used to create unique fifos.
+ * @param RPC.Remote remote
  */
-M3D.AgxWorld = function(command,flags,id){
-    M3D.World.call(this);
+M3D.AgxWorld = function(command,flags,id,remote){
+    M3D.World.call(this,remote);
     var that = this;
 
     // events
@@ -1568,6 +1736,305 @@ M3D.TimeStats = function(historyMax){
 	if(!first || !last || first===last)
 	    return 0.0;
 	return n / (last-first);
+    };
+};
+// Namespace
+RPC = {};
+
+/**
+ * @class RPC.Remote
+ * @brief A remote binary RPC connection.
+ * @param mixed conn A connection object for Node.js, a websocket URL for the client
+ */
+RPC.Remote = function(connection){
+    // Message types
+    var BODY_SUBSCRIBE =        this.BODY_SUBSCRIBE =        1;
+    var BODY_UNSUBSCRIBE =      this.BODY_UNSUBSCRIBE =      2;
+    var NETWORK_PING =          this.NETWORK_PING =          3;
+    var WORLD_STEP =            this.WORLD_STEP =            4;
+    var WORLD_UPDATECOORDS =    this.WORLD_UPDATECOORDS =    5;
+    var WORLD_CREATEBODY =      this.WORLD_CREATEBODY =      6;
+    var COLLISION_CREATESHAPE = this.COLLISION_CREATESHAPE = 7;
+    var EMPTYRESULT =           this.EMPTYRESULT =           8;
+    var REPORT =                this.REPORT =                9;
+
+    RPC.EventTarget.call(this);
+    var idCount = 1,
+    callbacks = {},
+    that = this,
+    conn = connection;
+
+    var send;
+    if(conn instanceof RPC.DebugSocket){
+	conn.onmessage = function(e){
+	    onmessage(e.data);
+	};
+	send = function(data){
+	    // Send using connection
+	    conn.send(data);
+	};
+    } else {
+	throw new Error("Connection type not recognized.");
+    }
+
+    // Projects data onto an arraybuffer and returns it
+    this.marshal = function(message){
+	var headlen = 4*2; // id,type as 2 int32's
+	var i32view, f32view, i8view, ui8view, i16view;
+	function prepBuf(mess,datalength){
+	    var buf = new ArrayBuffer(datalength+headlen);
+	    head = new Int32Array(buf,0,2);
+	    head[0] = mess.mid;
+	    head[1] = mess.type;
+	    return buf;
+	}
+	var buf;
+	switch(message.type){
+
+	case BODY_SUBSCRIBE:
+	    buf = prepBuf(message,4); // id of the body (i32)
+	    i32view[2] = message.id;
+	    break;
+
+	case NETWORK_PING:
+	    buf = prepBuf(message,0);
+	    break;
+
+	case WORLD_STEP:
+	    buf = prepBuf(message,4); // dt (f32)
+	    if(!f32view) f32view = new Float32Array(buf);
+	    f32view[2] = message.dt;
+	    break;
+
+	case WORLD_UPDATECOORDS: // Quality??
+	    buf = prepBuf(message,
+			  message.ids.length*(1*2 + (3+4)*2)); // 1id * int16 + ( 3pos + 4quat ) * int16
+	    if(!i16view) i16view = new Int16Array(buf);
+	    var start = 4;
+	    for(var i=0; i<message.ids.length; i++){
+		i16view[start] = message.ids[i];
+		i16view[start+1] = message.positions[3*i+0];
+		i16view[start+2] = message.positions[3*i+1];
+		i16view[start+3] = message.positions[3*i+2];
+		i16view[start+4] = message.quats[4*i+0];
+		i16view[start+5] = message.quats[4*i+1];
+		i16view[start+6] = message.quats[4*i+2];
+		i16view[start+7] = message.quats[4*i+3];
+	    }
+	    break;
+
+	case COLLISION_CREATESHAPE:
+	    switch(message.shapeType){
+	    case M3D.Shape.SPHERE:
+		buf = prepBuf(message,4 + 4 + 4); // 1type * int32 + radius*float32 + id*int32
+		var typ = new Int32Array(buf);
+		typ[2] = message.shapeType;
+		var radius = new Float32Array(buf);
+		radius[3] = message.radius;
+		typ[4] = message.id;
+		break;
+	    default:
+		throw new Error("Shape "+message.shapeType+" not implemented yet!");
+		break;
+	    }
+	    break;
+
+	case WORLD_CREATEBODY:
+	    buf = prepBuf(message,4 + 4 + 4); // shapeType*int32 , mass*float32, newid*int32
+	    if(!i32view) i32view = new Int32Array(buf);
+	    if(!f32view) f32view = new Float32Array(buf);
+	    i32view[2] = message.shapeType;
+	    f32view[3] = message.mass;
+	    i32view[4] = message.id;
+	    break;
+
+	default:
+	    throw new Error("Marshalling of messages of type "+message.type+" not implemented yet");
+	    break;
+	}
+	return buf;
+
+	var data = JSON.stringify(message); // todo: use binary array buffers
+	return data;
+    }
+
+    // Must return an object with properties type and id
+    this.unmarshal = function(data){
+	//var message = JSON.parse(data); // todo: use binary array buffers
+
+	var i32view = new Int32Array(data),
+	f32view = new Float32Array(data),
+	ui8view = new Uint8Array(data),
+	i16view = new Int16Array(data);
+	var m = {mid:i32view[0],
+		 type:i32view[1]};
+	switch(m.type){
+	case BODY_SUBSCRIBE:
+	    m.id = i32view[2];
+	    break;
+	case NETWORK_PING:
+	    break;
+	case WORLD_STEP:
+	    m.dt = f32view[2];
+	    break;
+	case WORLD_UPDATECOORDS:
+	    // 1id * int16 + ( 3pos + 4quat ) * int16 
+	    var start = 4;
+	    var numbodies = (data.byteLength-8) / (2*8);
+	    m.ids = [];
+	    m.positions = [];
+	    m.quats = [];
+	    for(var i=0; i<numbodies; i++){
+		m.ids.push(i16view[start]);
+		m.positions.push(i16view[start+1]);
+		m.positions.push(i16view[start+2]);
+		m.positions.push(i16view[start+3]);
+		m.quats.push(i16view[start+4]);
+		m.quats.push(i16view[start+5]);
+		m.quats.push(i16view[start+6]);
+		m.quats.push(i16view[start+7]);
+	    }
+	    break;
+	case COLLISION_CREATESHAPE:
+	    m.shapeType = i32view[2];
+	    switch(m.shapeType){
+	    case M3D.Shape.SPHERE:
+		m.radius = f32view[3];
+		m.id = i32view[4];
+		break;
+	    default:
+		throw new Error("Shape "+m.shapeType+" not implemented yet!");
+		break;
+	    }
+	    break;
+	case WORLD_CREATEBODY:
+	    m.mass = f32view[3];
+	    m.id = i32view[4];
+	    break;
+	default:
+	    throw new Error("Marshalling of ms of type "+m.type+" not implemented yet");
+	    break;
+	}
+	return m;
+    }
+
+    // Take care of an incoming message
+    function onmessage(data){
+	var message = that.unmarshal(data);
+	switch(message.type){
+
+	    // Commands with optional empty result
+	case BODY_SUBSCRIBE:
+	case NETWORK_PING:
+	case WORLD_STEP:
+	case WORLD_UPDATECOORDS:
+	    message.done = function(){
+		if(message.mid>0){ // If a callback was provided
+		    that.exec({
+			type:EMPTYRESULT,
+			mid:message.mid
+		    });
+		}
+	    };
+	    that.dispatchEvent({type:'command',command:message});
+	    break;
+
+	case COLLISION_CREATESHAPE:
+	case WORLD_CREATEBODY:
+	    message.done = function(id){
+		that.exec({
+		    type:'result',
+		    mid:message.mid,
+		    id:id
+		});
+	    };
+	    that.dispatchEvent({type:'command',command:message});
+	    break;
+
+	    // Got result, call registered callback
+	    /*
+	      // Should be specific results to be able to unmarshal
+	case RESULT:
+	    callbacks[message.mid] && callbacks[message.mid](message);
+	    callbacks[message.mid] = null;
+	    break;*/
+
+	    // Got report, call callback but do not delete it
+	    /*
+	      // Should be specific reports
+	case REPORT:
+	    callbacks[message.mid] && callbacks[message.mid](message);
+	    break;
+*/
+
+	default:
+	    throw new Error("Strange message type: "+message.type);
+	    break;
+	}
+    }
+
+    this.exec = function(command,callback){
+	// register callback
+	if(!command.mid)
+	    command.mid = 0;
+	if(callback){
+	    command.mid = idCount;
+	    callbacks[idCount] = callback;
+	    idCount++;
+	}
+
+	// Send message
+	send(that.marshal(command));
+    };
+};
+
+/**
+ * @class RPC.DebugSocket
+ * @brief Helper socket implementation.
+ */
+RPC.DebugSocket = function(){
+    RPC.EventTarget.call(this);
+    var remote;
+    this.onmessage = function(e){};
+    this.onopen = function(e){};
+    this.onclose = function(e){};
+    this.readyState = 0;
+    this.send = function(data){
+	remote.onmessage({data:data});
+    };
+    this.connect = function(remoteSocket){
+	remote = remoteSocket;
+	this.readyState = 1; // OK
+	this.onopen({});
+    };
+};
+
+/**
+ * @class RPC.EventTarget
+ * @see https://github.com/mrdoob/eventtarget.js/
+ */
+RPC.EventTarget = function () {
+    var listeners = {};
+    this.addEventListener = function ( type, listener ) {
+	if ( listeners[ type ] == undefined ) {
+	    listeners[ type ] = [];
+	}
+	if ( listeners[ type ].indexOf( listener ) === - 1 ) {
+	    listeners[ type ].push( listener );
+	}
+    };
+
+    this.dispatchEvent = function ( event ) {
+	for ( var listener in listeners[ event.type ] ) {
+	    listeners[ event.type ][ listener ]( event );
+	}
+    };
+
+    this.removeEventListener = function ( type, listener ) {
+	var index = listeners[ type ].indexOf( listener );
+	if ( index !== - 1 ) {
+	    listeners[ type ].splice( index, 1 );
+	}
     };
 };
 if (typeof module !== 'undefined') {

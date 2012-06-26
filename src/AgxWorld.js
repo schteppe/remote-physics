@@ -4,9 +4,10 @@
  * @param string command The command for starting Agx
  * @param Array flags Flags to be passed when starting agx, e.g. ["filename.lua","--agxOnly"]
  * @param int id A unique id for this session. Used to create unique fifos.
+ * @param RPC.Remote remote
  */
-M3D.AgxWorld = function(command,flags,id){
-    M3D.World.call(this);
+M3D.AgxWorld = function(command,flags,id,remote){
+    M3D.World.call(this,remote);
     var that = this;
 
     // events

@@ -1,26 +1,106 @@
 /**
  * @class World
  * @brief A description of a physics world
+ * @param RPC.Remote remote
  */
-M3D.World = function(){
+M3D.World = function(remote){
     M3D.EventTarget.call(this); // extend EventTarget
     var that = this;
     var idCount = 0;
+
+    /**
+     * @property RPC.Remote remote
+     * @memberof World
+     * @brief A remote sync RPC object
+     */
+    this.remote = remote;
+    if(remote){
+	remote.addEventListener('command',function(e){
+	    switch(e.command.type){
+	    case remote.COLLISION_CREATESHAPE:
+		switch(e.command.shapeType){
+		case M3D.Shape.SPHERE:
+		    var s = new M3D.Sphere(e.command.radius);
+		    s.id = e.command.id;
+		    break;
+		default:
+		    throw new Error("Could not recognize shape type: "+e.command.shapeType);
+		    break;
+		}
+		that.shapes.push(s);
+		break;
+
+	    case remote.WORLD_CREATEBODY:
+		var rb = new M3D.RigidBody(that.getShapeById(e.command.shapeId),
+					   e.command.mass);
+		rb.id = e.command.id;
+		that.bodies.push(rb);
+		break;
+
+	    case remote.BODY_SUBSCRIBE:
+		that.getRigidBodyById(e.command.id).sync = true;
+		break;
+
+	    case remote.BODY_UNSUBSCRIBE:
+		that.getRigidBodyById(e.command.id).sync = false;
+		break;
+
+	    case remote.WORLD_STEP:
+		// Cannot do much about this command here.
+		// Implement in subclasses!
+		break;
+
+	    case remote.WORLD_UPDATECOORDS:
+		// Update all body positions
+		var positions = e.command.positions;
+		var ids = e.command.ids;
+		var quats = e.command.quats;
+		for(var i=0; i<ids.length; i++){
+		    var id = ids[i],
+		    x = positions[3*i],
+		    y = positions[3*i+1],
+		    z = positions[3*i+2],
+		    qx = quats[4*i],
+		    qy = quats[4*i+1],
+		    qz = quats[4*i+2],
+		    qw = quats[4*i+3];
+		    var rb = that.getRigidBodyById(id);
+		    if(!rb)
+			throw new Error("Rigid body id="+id+" not found");
+		    rb.position.x = x;
+		    rb.position.y = y;
+		    rb.position.z = z;
+		    rb.quaternion.x = qx;
+		    rb.quaternion.y = qy;
+		    rb.quaternion.z = qz;
+		    rb.quaternion.w = qw;
+		}
+		break;
+
+	    default:
+		console.log("Could not recognize command: ",e.command);
+		break;
+	    }
+	});
+    }
 
     /**
      * @property array bodies
      * @memberof World
      */
     this.bodies = [];
-
-    /**
-     * @fn addBody
-     * @memberof World
-     * @brief Add a body to the simulation
-     */
-    this.addBody = function(body){
-	body.id = idCount++;
-	this.bodies.push(body);
+    this.shapes = [];
+    
+    this.getShapeById = function(id){
+	for(var i=0; i<this.shapes.length; i++)
+	    if(this.shapes[i].id == id)
+		return this.shapes[i];
+    }
+    
+    this.getRigidBodyById = function(id){
+	for(var i=0; i<this.bodies.length; i++)
+	    if(this.bodies[i].id == id)
+		return this.bodies[i];
     }
 
     /**
@@ -31,6 +111,76 @@ M3D.World = function(){
     this.clear = function(){
 	this.bodies = [];
 	idCount = 0;
+    };
+
+    this.createSphereShape = function(radius){
+	var s = new M3D.Sphere(radius);
+	s.remote = this.remote;
+	s.id = idCount++;
+	this.remote.exec({
+	    type : remote.COLLISION_CREATESHAPE,
+	    id : s.id,
+	    shapeType : M3D.Shape.SPHERE,
+	    radius : radius
+	});
+	return s;
+    };
+
+    this.step = function(dt,callback){
+	this.remote.exec({type:remote.WORLD_STEP,dt:dt},callback);
+    };
+
+    this.createRigidBody = function(shape,mass){
+	var r = new M3D.RigidBody(shape,mass);
+	r.id = idCount++;
+	r.remote = this.remote;
+	this.bodies.push(r);
+	this.remote.exec({type:remote.WORLD_CREATEBODY,id:r.id,shapeId:shape.id,mass:mass});
+	return r;
+    };
+
+    /**
+     * @brief Sets all body coordinates (quats and positions)
+     * @param array ids
+     * @param array positions
+     * @param array quats
+     */
+    this.setAllBodyCoordinates = function(ids,positions,quats){
+	var changed = []; // So we can keep track of bodies that changed position
+	for(var i=0; i<ids.length; i++){
+	    var id = ids[i],
+	    x = positions[3*i],
+	    y = positions[3*i+1],
+	    z = positions[3*i+2],
+	    qx = quats[4*i],
+	    qy = quats[4*i+1],
+	    qz = quats[4*i+2],
+	    qw = quats[4*i+3];
+	    var rb = this.getRigidBodyById(id);
+	    if(rb.sync &&
+	       (rb.position.x != x || 
+		rb.position.y != y || 
+		rb.position.z != z ||
+		rb.quaternion.x != qx || 
+		rb.quaternion.y != qy || 
+		rb.quaternion.z != qz || 
+		rb.quaternion.w != qw))
+		changed.push(true);
+	    else
+		changed.push(false);
+
+	    // Set local
+	    rb.position.x = x;
+	    rb.position.y = y;
+	    rb.position.z = z;
+
+	    rb.quaternion.x = x;
+	    rb.quaternion.y = y;
+	    rb.quaternion.z = z;
+	    rb.quaternion.w = w;
+	}
+	// Set remote
+	remote.exec({type:remote.WORLD_UPDATECOORDS,positions:positions,quats:quats,ids:ids});
     };
 
     /**
@@ -135,22 +285,25 @@ M3D.World.SHOOT     = 5; // Origin +direction, 6 x Float32
  * @brief Rigid body.
  * @param Shape shape
  */
-M3D.RigidBody = function(shape){
+M3D.RigidBody = function(shape,mass){
     /**
      * @property int id
      * @memberof RigidBody
      */
     this.id = -1;
+
     /**
      * @property Shape shape
      * @memberof RigidBody
      */
     this.shape = shape;
+
     /**
      * @property Vec3 position
      * @memberof RigidBody
      */
     this.position = new M3D.Vec3();
+
     /**
      * @property Quat quaternion
      * @memberof RigidBody
@@ -168,6 +321,20 @@ M3D.RigidBody = function(shape){
      * @memberof RigidBody
      */
     this.rotVelocity = new M3D.Vec3();
+
+    // remote sync object
+    this.remote = null;
+    this.sync = true;
+
+    this.setAutoUpdate = function(autoUpdate){
+	if(this.sync != autoUpdate){
+	    this.sync = autoUpdate;
+	    if(autoUpdate)
+		this.remote.exec({type:this.remote.BODY_SUBSCRIBE,id:this.id});
+	    else
+		this.remote.exec({type:this.remote.BODY_UNSUBSCRIBE,id:this.id});
+	}
+    };
 }
 
 /**
