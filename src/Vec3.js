@@ -63,4 +63,8 @@ M3D.Vec3 = function(x,y,z){
 	target.y = this.y;
 	target.z = this.z;
     }
+
+    this.toString = function(){
+	return "("+[this.x,this.y,this.z].join(",")+")";
+    };
 }

@@ -5,7 +5,11 @@ require('agx/json')
 -- Sync an Agx simulation with M3D / Node.js
 -- @param agxSDK.Simulation sim
 -- @param table keyCallbacks A table that maps event.keyCode to callable function, where event.keyCode is the key code that comes from jQuery
-function nodeSync(sim,keyCallbacks,title,description)
+function nodeSync(sim,root,keyCallbacks,title,description)
+
+   local debugf = io.open("/tmp/agxdebug", "a")
+   debugf:write("test\n")
+   debugf:flush()
    
    -- Get the process id to be able to find correct fifo
    local stat = io.open("/proc/self/stat", "r")
@@ -25,9 +29,6 @@ function nodeSync(sim,keyCallbacks,title,description)
       return string.gsub(string.gsub(string.format("%f",n),"0+$",""),"%.$",".0");
    end
    
-   -- Get bodies to sync
-   local bodies = sim:getDynamicsSystem():getRigidBodies()
-
    -- Setup mouse joint
    local mouseJoint = nil
    
@@ -36,6 +37,7 @@ function nodeSync(sim,keyCallbacks,title,description)
    worldInfoDumper:setMask( agxSDK.StepEventListener.PRE_STEP )
    fp = io.open("/tmp/agxout"..pid, "w")
    function worldInfoDumper:pre( t )
+      local bodies = sim:getDynamicsSystem():getRigidBodies()
       local data = ""
       local del = ""
       for i=0,bodies:size()-1 do
@@ -75,6 +77,8 @@ function nodeSync(sim,keyCallbacks,title,description)
    f = io.open("/tmp/agxin"..pid,"r")
    reader = agxSDK.LuaStepEventListener()
    reader:setMask( agxSDK.StepEventListener.PRE_STEP )
+   local id2shape = {}
+   local id2body = {}
    function reader:pre(t)
       -- read from inpipe
       local l = f:read()
@@ -82,7 +86,8 @@ function nodeSync(sim,keyCallbacks,title,description)
 	 local commands = explode("|",l)
 	 for i,command in pairs(commands) do
 	    if string.find(command,"step") then
-	       -- do nothing
+	       -- do nothing, it will step anyway
+
 	    elseif string.find(command,"keydown")~=nil then
 	       local keyCode = nil
 	       for n in command:gmatch("[%d]+") do
@@ -91,6 +96,39 @@ function nodeSync(sim,keyCallbacks,title,description)
 	       if keyCode~=nil and keyCallbacks[keyCode]~=nil then
 		  keyCallbacks[keyCode](true)
 	       end
+
+	    elseif string.find(command,"CREATESHAPE")~=nil then
+	       local nums = {}
+	       for n in command:gmatch("[%d%.]+") do
+		  table.insert(nums,tonumber(n))
+	       end
+	       local shapeType = nums[1]
+	       if shapeType == 6 then -- sphere
+		  local id = nums[2]
+		  local radius = nums[3]
+		  local sphereShape = agxCollide.Sphere(  radius )
+		  local sphereGeometry = agxCollide.Geometry( sphereShape )
+		  id2shape[id] = sphereGeometry
+	       end
+	       debugf:write("Create shape\n")
+	       debugf:flush()
+
+	    elseif string.find(command,"CREATEBODY")~=nil then
+	       local nums = {}
+	       for n in command:gmatch("[%d%.]+") do
+		  table.insert(nums,tonumber(n))
+	       end
+	       local shapeId = nums[1]
+	       local mass = nums[2]
+	       local id = nums[3]
+	       local body = agx.RigidBody()
+	       body:add(id2shape[shapeId])
+	       sim:add(body);
+	       agxOSG.createVisual( body, root ) -- not needed if we run via browser
+	       id2body[id] = body
+	       debugf:write("Create body\n")
+	       debugf:flush()
+
 	    elseif string.find(command,"keyup")~=nil then
 	       local keyCode = nil
 	       for n in command:gmatch("[%d]+") do
@@ -99,6 +137,7 @@ function nodeSync(sim,keyCallbacks,title,description)
 	       if keyCode~=nil and keyCallbacks[keyCode]~=nil then
 		  keyCallbacks[keyCode](false)
 	       end
+
 	    elseif string.find(command,"mouseup")~=nil then
 	       -- remove mousejoint
 	       if mouseJoint then
@@ -106,6 +145,7 @@ function nodeSync(sim,keyCallbacks,title,description)
 		  sim:remove( mouseJoint )
 		  mouseJoint = nil
 	       end
+
 	    elseif string.find(command,"mousedown")~=nil then
 	       if mouseJoint then
 		  mouseJoint:setEnable(false)
@@ -122,6 +162,7 @@ function nodeSync(sim,keyCallbacks,title,description)
 	       end
 	       local worldPoint = agx.Vec3( nums[1],nums[2],nums[3] )
 	       local body_number = math.floor(nums[4])
+	       local bodies = sim:getDynamicsSystem():getRigidBodies()
 	       local body = bodies:at(body_number)
 	       if body then
 		  local loc = body:getFrame():transformPointToLocal( worldPoint )
@@ -155,6 +196,7 @@ function nodeSync(sim,keyCallbacks,title,description)
    -- @todo Should be sent whenever the system changes. How to do this?
    local json = {}
    local data = {}
+   local bodies = sim:getDynamicsSystem():getRigidBodies()
    for i=0,bodies:size()-1 do
       local b = bodies:at(i)
       local geos = b:getGeometries()
@@ -211,20 +253,17 @@ function nodeSync(sim,keyCallbacks,title,description)
    end
    data = "["..table.concat(data,",").."]"
 
-   local debugf = io.open("/tmp/json.txt", "w")
-   debugf:write(table.json(json).."\n")
-   debugf:close()
+   -- local debugf = io.open("/tmp/json.txt", "w")
+   -- debugf:write(table.json(json).."\n")
+   -- debugf:close()
 
-   debugf = io.open("/tmp/json2.txt", "w")
-   debugf:write(data.."\n")
-   debugf:close()
+   -- debugf = io.open("/tmp/json2.txt", "w")
+   -- debugf:write(data.."\n")
+   -- debugf:close()
 
-   --data = string.gsub(data,"0+ "," ")
-   --data = string.gsub(data,"0+$","")
-   --fp:write(data)
-   fp:write(table.json(json))
-   fp:write("\n")
-   fp:flush()
+   --fp:write(table.json(json))
+   --fp:write("\n")
+   --fp:flush()
 
    -- @fn explode(sep, str)
    -- @brief split a string

@@ -65,6 +65,10 @@ M3D.Vec3 = function(x,y,z){
 	target.y = this.y;
 	target.z = this.z;
     }
+
+    this.toString = function(){
+	return "("+[this.x,this.y,this.z].join(",")+")";
+    };
 }/**
  * @class Quat
  * @brief Quaternion class.
@@ -541,10 +545,10 @@ M3D.Renderer.prototype.start = function(){
 		var ray = that.getRay(lastx,lasty);
 		var origin = new M3D.Vec3(ray.origin.x, ray.origin.y, ray.origin.z);
 		var dir = new M3D.Vec3(ray.direction.x, ray.direction.y, ray.direction.z);
-		that.world.shootShape(ray.origin,ray.direction);
+		//that.world.shootShape(ray.origin,ray.direction);
 		break;
 	    default:
-		that.world.keyDown(e.keyCode);
+		//that.world.keyDown(e.keyCode);
 		break;
 	    }
 	}
@@ -553,7 +557,7 @@ M3D.Renderer.prototype.start = function(){
 	    switch(e.keyCode){
 	    case 99: break;
 	    case 13: break;
-	    default: that.world.keyUp(e.keyCode); break;
+	    default: /*that.world.keyUp(e.keyCode);*/ break;
 	    }
 	}
     }).mousedown(function(e){
@@ -581,13 +585,13 @@ M3D.Renderer.prototype.start = function(){
 	    // Make it face toward the camera
 	    that.planeContainer.quaternion.setFromRotationMatrix(that.camera.matrixWorld);
 	    that.setClickMarker(hit.point.x, hit.point.y, hit.point.z);
-	    that.world.addMouseJoint(hit.body,hit.point);
+	    //that.world.addMouseJoint(hit.body,hit.point);
 	}
 	mousedown = true;
     }).mouseup(function(e){
 	if(!e.ctrlKey)
 	    return;
-	that.world.removeMouseJoints();
+	//that.world.removeMouseJoints();
 	that.removeClickMarker();
 	mousedown = false;
     }).mousemove(function(e){
@@ -603,7 +607,7 @@ M3D.Renderer.prototype.start = function(){
 	    var hit = that.clickTest(e,[that.plane]);
 	    if(hit){
 		that.setClickMarker(hit.point.x, hit.point.y, hit.point.z);
-		that.world.moveMouseJoint(hit.point);
+		//that.world.moveMouseJoint(hit.point);
 	    }
 	    
 	    lastx = x;
@@ -773,6 +777,14 @@ M3D.World = function(remote){
 		that.getRigidBodyById(e.command.id).sync = false;
 		break;
 
+	    case remote.BODY_SETPOSITION:
+		console.log(e.command);
+		var p = that.getRigidBodyById(e.command.id).position;
+		p.x = e.command.x;
+		p.y = e.command.y;
+		p.z = e.command.z;
+		break;
+
 	    case remote.WORLD_STEP:
 		// Cannot do much about this command here.
 		// Implement in subclasses!
@@ -803,6 +815,7 @@ M3D.World = function(remote){
 		    rb.quaternion.z = qz;
 		    rb.quaternion.w = qw;
 		}
+		that.dispatchEvent({type:"update"});
 		break;
 
 	    default:
@@ -845,12 +858,13 @@ M3D.World = function(remote){
 	var s = new M3D.Sphere(radius);
 	s.remote = this.remote;
 	s.id = idCount++;
-	this.remote.exec({
+	var m = {
 	    type : remote.COLLISION_CREATESHAPE,
 	    id : s.id,
 	    shapeType : M3D.Shape.SPHERE,
 	    radius : radius
-	});
+	};
+	this.remote.exec(m);
 	return s;
     };
 
@@ -864,6 +878,7 @@ M3D.World = function(remote){
 	r.remote = this.remote;
 	this.bodies.push(r);
 	this.remote.exec({type:remote.WORLD_CREATEBODY,id:r.id,shapeId:shape.id,mass:mass});
+	this.dispatchEvent({type:'change'});
 	return r;
     };
 
@@ -963,6 +978,7 @@ M3D.World = function(remote){
     };
 }
 
+/*
 M3D.World.prototype.updateWorldFromJSON = function(json){
     var that = this;
     // Remove old bodies
@@ -998,15 +1014,7 @@ M3D.World.prototype.updateWorldFromJSON = function(json){
 	return body;
     }
 }
-
-
-// User interaction messages and the attached data
-M3D.World.MOUSEUP   = 0; // Nothing
-M3D.World.MOUSEDOWN = 1; // Position, 3 x Float32
-M3D.World.MOUSEMOVE = 2; // Position, 3 x Float32
-M3D.World.KEYDOWN   = 3; // Key code, 1 x Float32
-M3D.World.KEYUP     = 4; // Key code, 1 x Float32
-M3D.World.SHOOT     = 5; // Origin +direction, 6 x Float32
+*/
 
 /**
  * @class RigidBody
@@ -1062,6 +1070,15 @@ M3D.RigidBody = function(shape,mass){
 	    else
 		this.remote.exec({type:this.remote.BODY_UNSUBSCRIBE,id:this.id});
 	}
+    };
+
+    this.setPosition = function(x,y,z){
+	console.log("set pos of "+this.id);
+	this.remote.exec({type:this.remote.BODY_SETPOSITION,
+			  id:this.id,
+			  x:x,
+			  y:y,
+			  z:z});
     };
 }
 
@@ -1151,7 +1168,6 @@ M3D.WebSocketWorld = function(socketUrl){
     var mousedown = false;
     var dt = 1/60; // framerate
 
-    M3D.World.call(this);
     var that = this;
 
     // Stats
@@ -1162,10 +1178,13 @@ M3D.WebSocketWorld = function(socketUrl){
     // events
     var openEvent = {type:'opensocket'};
     var closeEvent = {type:'closesocket'};
-    var updateEvent = {type:'update'};
-    var changeEvent = {type:'change'};
+    var updateEvent = {type:'update'}; // if bodies moved
+    var changeEvent = {type:'change'}; // if bodies were added/removed
 
     var ws = new WebSocket(socketUrl);
+
+    var remote = new RPC.Remote(ws);
+    M3D.World.call(this,remote);
 
     // Open / close socket
     ws.onopen = function(){
@@ -1175,6 +1194,7 @@ M3D.WebSocketWorld = function(socketUrl){
 	that.dispatchEvent(closeEvent);
     };
 
+    /*
     function updateWorldFromBuffer(buf){
 	var a = new Float32Array(buf);
 	// Read position data
@@ -1276,10 +1296,10 @@ M3D.WebSocketWorld = function(socketUrl){
 	f2arr[0] = M3D.World.KEYUP;
 	f2arr[1] = keyCode;
 	sendBuffer(f2buf);
-    }
+    }*/
 
     var messageCount = 0;
-    ws.onmessage = function(e){
+    /*ws.onmessage = function(e){
 	that.messageCountStats.accumulate(1);
 	messageCount++;
 	if(e.data && e.data instanceof Blob){
@@ -1287,7 +1307,7 @@ M3D.WebSocketWorld = function(socketUrl){
 	    var fr = new FileReader();
 	    fr.onload = function(f){
 		that.downStats.accumulate(fr.result.byteLength);
-		updateWorldFromBuffer(fr.result);
+		//updateWorldFromBuffer(fr.result);
 		that.dispatchEvent(updateEvent);
 
 		// If skipping is on, schedule interpolation
@@ -1302,7 +1322,7 @@ M3D.WebSocketWorld = function(socketUrl){
 	} else if(typeof e.data == "string"){
 	    // We got a world description in JSON. Parse it.
 	    try {
-		var world = JSON.parse(e.data/*.match(/\[.*\]/)*/);
+	    var world = JSON.parse(e.data); // .match(/\[.*\]/)
 	    } catch(err){
 		console.log(e.data);
 		throw err;
@@ -1310,66 +1330,34 @@ M3D.WebSocketWorld = function(socketUrl){
 	    that.updateWorldFromJSON(world);
 	    that.dispatchEvent(changeEvent);
 	}
-    };
+	};
+    */
 
-    /**
-     * @fn addMouseJoint 
-     * @memberof WebSocketWorld
-     * @brief Add a mouse joint to the simulation at a specified point.
-     * @param RigidBody body
-     * @param Vec3 point
-     */
+    /*
     this.addMouseJoint = function(body,point){
 	sendMouseDown(point.x, point.y, point.z,body.id);
     };
 
-    /**
-     * @fn removeMouseJoints
-     * @memberof WebSocketWorld
-     * @brief Remove mouse joints from the simulation.
-     */
     this.removeMouseJoints = function(){
 	sendMouseUp();
     };
 
-    /**
-     * @fn moveMouseJoint
-     * @memberof WebSocketWorld
-     * @brief Move the current mouse joint to a given point.
-     * @param Vec3 point
-     */
     this.moveMouseJoint = function(point){
 	sendMouseMove(point.x,
 		      point.y,
 		      point.z);
     };
-
-    /**
-     * @fn keyDown
-     * @memberof WebSocketWorld
-     * @param int keyCode
-     */
-    this.keyDown = function(keyCode){
+this.keyDown = function(keyCode){
 	sendKeyDown(keyCode);
     };
 
-    /**
-     * @fn keyDown
-     * @memberof WebSocketWorld
-     * @param int keyCode
-     */
     this.keyUp = function(keyCode){
 	sendKeyUp(keyCode);
     };
 
-    /**
-     * @fn shootShape
-     * @memberof WebSocketWorld
-     * @brief Adds a shape and gives it a velocity
-     */
     this.shootShape = function(origin,direction){
 	
-    }
+    }*/
 };
 
 M3D.WebSocketWorld.prototype = new M3D.World();/**
@@ -1380,9 +1368,45 @@ M3D.WebSocketWorld.prototype = new M3D.World();/**
  * @param int id A unique id for this session. Used to create unique fifos.
  * @param RPC.Remote remote
  */
-M3D.AgxWorld = function(command,flags,id,remote){
+M3D.AgxWorld = function(command,flags,remote){
     M3D.World.call(this,remote);
     var that = this;
+
+    var writeToAgx = function(){};
+    var writeToAgxCommands = [];
+
+    remote.addEventListener('command',function(e){
+	switch(e.command.type){
+	case remote.WORLD_STEP:
+	    // writeToAgxCommands.push("step"); // dont have to
+	    that.stepAgx();
+	    break;
+
+	case remote.COLLISION_CREATESHAPE:
+	    switch(e.command.shapeType){
+	    case M3D.Shape.SPHERE:
+		writeToAgxCommands.push("CREATESHAPE "+e.command.shapeType+" "+e.command.id+" "+e.command.radius);
+		break;
+	    default:
+		throw new Error("Shape "+e.command.shapeType+" not implemented yet!");
+		break;
+	    }
+	    break;
+
+	case remote.WORLD_CREATEBODY:    
+	    writeToAgxCommands.push("CREATEBODY "+e.command.shapeId+" "+e.command.mass+" "+e.command.id);
+	    break;
+
+	case remote.BODY_SETPOSITION:    
+	    writeToAgxCommands.push("SETBODYPOSITION "+e.command.id+" "+[e.command.x,e.command.y,e.command.z].join(" "));
+	    break;
+
+	default:
+	    throw new Error("Marshalling of messages of type "+e.command.type+" not implemented yet");
+	    break;
+	}
+	writeToAgx();
+    });
 
     // events
     var changeEvent = {type:'change'};
@@ -1393,24 +1417,33 @@ M3D.AgxWorld = function(command,flags,id,remote){
     var worldBuffer = [];
     var worldJson = null;
 
-    var writeToAgx = function(){};
-    var writeToAgxCommands = [];
-
-    this.step = function(){
+    this.stepAgx = function(){
 	if(worldBuffer.length>0){
 	    var data = worldBuffer.shift();
+	    var ids = [],
+	    positions = [],
+	    quats = [];
 	    for(var i=0; i<data.positions.length && i<that.bodies.length; i++){
 		var b = that.bodies[i]; 
 		data.positions[i].copy(b.position);
 		data.quats[i].copy(b.quaternion);
 		data.rotVelocities[i].copy(b.rotVelocity);
 		data.velocities[i].copy(b.velocity);
+		ids.push(b.id);
+		positions.push(b.position.x);
+		positions.push(b.position.y);
+		positions.push(b.position.z);
+
+		quats.push(b.quaternion.x);
+		quats.push(b.quaternion.y);
+		quats.push(b.quaternion.z);
+		quats.push(b.quaternion.w);
 	    }
+	    remote.exec({type:remote.WORLD_UPDATECOORDS,ids:ids,positions:positions,quats:quats});
 	    that.dispatchEvent(changeEvent);
 	}
-	if(worldBuffer.length<1){
+	if(worldBuffer.length<1)
 	    writeToAgx();
-	}
     };
 
     this.toJSONString = function(){
@@ -1422,6 +1455,7 @@ M3D.AgxWorld = function(command,flags,id,remote){
 	return JSON.parse(worldJson);
     }
 
+    /*
     var compressedQuat = new M3D.Vec3();
     this.toBuffer = function(){
 	// Compose world data buffer
@@ -1479,7 +1513,10 @@ M3D.AgxWorld = function(command,flags,id,remote){
 	}
 	return buf;
     };
+    */
 
+    /*
+      // @todo move to command event of remote
     this.handleBufferMessage = function(buf){
 	// Move joint
 	var eventType = parseInt(buf.readFloatLE(0));
@@ -1513,6 +1550,7 @@ M3D.AgxWorld = function(command,flags,id,remote){
 	    break;
 	}
     }
+    */
 
     var spawn = require('child_process').spawn;
     var exec = require('child_process').exec;
@@ -1567,10 +1605,9 @@ M3D.AgxWorld = function(command,flags,id,remote){
 		writeToAgx = function(callback){
 		    writeToAgxCommands.push("step");
 		    var out = writeToAgxCommands.join("|")+"\n";
-		    //var out = (str == undefined ? "step\n" : str);
+		    //console.log("writing "+out+" to agx");
 		    if(!killed)
 			fs.writeSync(fd,out);
-		    //lastWriteToAgx = new Date().getTime();
 		    writeToAgxCommands = [];
 		    wrote = true;
 		    callback && callback();
@@ -1592,15 +1629,15 @@ M3D.AgxWorld = function(command,flags,id,remote){
 
 	    var constructed = false;
 	    function handleChunk(s){
+		//console.log("Got "+s+" from agx");
 		var sent = false;
 		if(s[0] == "["){
 		    // Got JSON list of body data
 		    worldJson = s;
-		    that.updateWorldFromJSON(JSON.parse(s));
+		    //that.updateWorldFromJSON(JSON.parse(s));
 		    that.dispatchEvent(upgradeEvent);
-		    if(!constructed){
+		    if(!constructed)
 			that.dispatchEvent(constructEvent);
-		    }
 			
 		} else {
 		    var rows = s.split("|");
@@ -1613,11 +1650,10 @@ M3D.AgxWorld = function(command,flags,id,remote){
 		    if(that.sendVelocities)
 			n = 13; // 6 extra:  wx, wy, wz, vx vy vz
 
-		    for(var j=0; j<rows.length && rows[j]!="\n"; j++){
+		    for(var j=0; j<rows.length && rows[j]!="\n" && rows[j]!=""; j++){
 			var nums = rows[j].split(" ");
-			if(nums.length!=n){
-			    console.log(rows.length + "... Row format wrong? ",rows[j]);
-			}
+			if(nums.length!=n)
+			    console.log("Num rows: "+rows.length + "... Row format wrong? Row:",rows[j]);
 			for(var i=0; i<nums.length && !isNaN(Number(nums[i])) && nums[i]!="\n"; i+=n){
 			    positions.push(new M3D.Vec3(Number(nums[i]),
 							Number(nums[i+1]),
@@ -1750,6 +1786,7 @@ RPC.Remote = function(connection){
     // Message types
     var BODY_SUBSCRIBE =        this.BODY_SUBSCRIBE =        1;
     var BODY_UNSUBSCRIBE =      this.BODY_UNSUBSCRIBE =      2;
+    var BODY_SETPOSITION =      this.BODY_SETPOSITION =      10;
     var NETWORK_PING =          this.NETWORK_PING =          3;
     var WORLD_STEP =            this.WORLD_STEP =            4;
     var WORLD_UPDATECOORDS =    this.WORLD_UPDATECOORDS =    5;
@@ -1757,6 +1794,9 @@ RPC.Remote = function(connection){
     var COLLISION_CREATESHAPE = this.COLLISION_CREATESHAPE = 7;
     var EMPTYRESULT =           this.EMPTYRESULT =           8;
     var REPORT =                this.REPORT =                9;
+
+    this.downStats = new M3D.TimeStats();
+    this.upStats = new M3D.TimeStats();
 
     RPC.EventTarget.call(this);
     var idCount = 1,
@@ -1771,11 +1811,50 @@ RPC.Remote = function(connection){
 	};
 	send = function(data){
 	    // Send using connection
-	    conn.send(data);
+	    if(conn.readyState==1)
+		conn.send(data);
+	    that.upStats.accumulate(data.byteLength);
 	};
-    } else {
+    } else if(typeof(WebSocket)!='undefined' && conn instanceof WebSocket){
+	conn.onmessage = function(e){
+	    // Assume Blob object
+	    // Update transforms. Need a filereader to read the fetched binary blob
+	    var fr = new FileReader();
+	    fr.onload = function(f){
+		onmessage(fr.result);
+	    } 
+	    fr.readAsArrayBuffer(e.data);
+	};
+	send = function(data){
+	    // Send using connection
+	    if(conn.readyState==1)
+		conn.send(data);
+	    that.upStats.accumulate(data.byteLength);
+	};
+    } else if(conn.webSocketVersion){ // Node.js websocket connection
+	conn.on('message', function(message) {
+	    switch(message.type){
+	    case 'utf8':
+		break;
+	    case 'binary':
+		// Manual copy. Is there a better way?
+		var buf = new ArrayBuffer(message.binaryData.length);
+		for(var i=0; i<message.binaryData.length; i++)
+		    buf[i] = message.binaryData[i];
+		onmessage(buf);
+		break;
+	    }
+	});
+	send = function(data){
+	    // Manual copy. Is there a better way?
+	    var buf = new Buffer(data.byteLength);
+	    for(var i=0; i<data.byteLength; i++)
+		buf[i] = data[i];
+	    that.upStats.accumulate(buf.byteLength);
+	    conn.send(buf);
+	};
+    } else
 	throw new Error("Connection type not recognized.");
-    }
 
     // Projects data onto an arraybuffer and returns it
     this.marshal = function(message){
@@ -1783,9 +1862,9 @@ RPC.Remote = function(connection){
 	var i32view, f32view, i8view, ui8view, i16view;
 	function prepBuf(mess,datalength){
 	    var buf = new ArrayBuffer(datalength+headlen);
-	    head = new Int32Array(buf,0,2);
-	    head[0] = mess.mid;
-	    head[1] = mess.type;
+	    i32view = new Int32Array(buf);
+	    i32view[0] = mess.mid;
+	    i32view[1] = mess.type;
 	    return buf;
 	}
 	var buf;
@@ -1794,6 +1873,15 @@ RPC.Remote = function(connection){
 	case BODY_SUBSCRIBE:
 	    buf = prepBuf(message,4); // id of the body (i32)
 	    i32view[2] = message.id;
+	    break;
+
+	case BODY_SETPOSITION:
+	    buf = prepBuf(message,1*4+3*2+2); // id of the body and xyz (1*i32 + 3*i16)
+	    i32view[2] = message.id;
+	    if(!i16view) i16view = new Int16Array(buf);
+	    i16view[6] = RPC.compress(message.x,'int16');
+	    i16view[7] = RPC.compress(message.y,'int16');
+	    i16view[8] = RPC.compress(message.z,'int16');
 	    break;
 
 	case NETWORK_PING:
@@ -1807,19 +1895,20 @@ RPC.Remote = function(connection){
 	    break;
 
 	case WORLD_UPDATECOORDS: // Quality??
+	    // @todo compress
 	    buf = prepBuf(message,
 			  message.ids.length*(1*2 + (3+4)*2)); // 1id * int16 + ( 3pos + 4quat ) * int16
 	    if(!i16view) i16view = new Int16Array(buf);
 	    var start = 4;
 	    for(var i=0; i<message.ids.length; i++){
 		i16view[start] = message.ids[i];
-		i16view[start+1] = message.positions[3*i+0];
-		i16view[start+2] = message.positions[3*i+1];
-		i16view[start+3] = message.positions[3*i+2];
-		i16view[start+4] = message.quats[4*i+0];
-		i16view[start+5] = message.quats[4*i+1];
-		i16view[start+6] = message.quats[4*i+2];
-		i16view[start+7] = message.quats[4*i+3];
+		i16view[start+1] = RPC.compress(message.positions[3*i+0],'int16');
+		i16view[start+2] = RPC.compress(message.positions[3*i+1],'int16');
+		i16view[start+3] = RPC.compress(message.positions[3*i+2],'int16');
+		i16view[start+4] = RPC.compress(message.quats[4*i+0],'int16');
+		i16view[start+5] = RPC.compress(message.quats[4*i+1],'int16');
+		i16view[start+6] = RPC.compress(message.quats[4*i+2],'int16');
+		i16view[start+7] = RPC.compress(message.quats[4*i+3],'int16');
 	    }
 	    break;
 
@@ -1840,22 +1929,23 @@ RPC.Remote = function(connection){
 	    break;
 
 	case WORLD_CREATEBODY:
-	    buf = prepBuf(message,4 + 4 + 4); // shapeType*int32 , mass*float32, newid*int32
+	    buf = prepBuf(message,4 + 4 + 4); // shapeId*int32 , mass*float32, newid*int32
 	    if(!i32view) i32view = new Int32Array(buf);
 	    if(!f32view) f32view = new Float32Array(buf);
-	    i32view[2] = message.shapeType;
+	    i32view[2] = message.shapeId;
 	    f32view[3] = message.mass;
 	    i32view[4] = message.id;
 	    break;
 
 	default:
-	    throw new Error("Marshalling of messages of type "+message.type+" not implemented yet");
+	    throw new Error("Marshalling of messages of type "+message.type+" not implemented yet.");
 	    break;
 	}
+
 	return buf;
 
-	var data = JSON.stringify(message); // todo: use binary array buffers
-	return data;
+	//var data = JSON.stringify(message); // todo: use binary array buffers
+	//return data;
     }
 
     // Must return an object with properties type and id
@@ -1869,14 +1959,25 @@ RPC.Remote = function(connection){
 	var m = {mid:i32view[0],
 		 type:i32view[1]};
 	switch(m.type){
+
 	case BODY_SUBSCRIBE:
 	    m.id = i32view[2];
 	    break;
+
+	case BODY_SETPOSITION:
+	    m.id = i32view[2];
+	    m.x = RPC.uncompress(i16view[6],'int16');
+	    m.y = RPC.uncompress(i16view[7],'int16');
+	    m.z = RPC.uncompress(i16view[8],'int16');
+	    break;
+
 	case NETWORK_PING:
 	    break;
+
 	case WORLD_STEP:
 	    m.dt = f32view[2];
 	    break;
+
 	case WORLD_UPDATECOORDS:
 	    // 1id * int16 + ( 3pos + 4quat ) * int16 
 	    var start = 4;
@@ -1884,17 +1985,19 @@ RPC.Remote = function(connection){
 	    m.ids = [];
 	    m.positions = [];
 	    m.quats = [];
+	    // @todo uncompress
 	    for(var i=0; i<numbodies; i++){
 		m.ids.push(i16view[start]);
-		m.positions.push(i16view[start+1]);
-		m.positions.push(i16view[start+2]);
-		m.positions.push(i16view[start+3]);
-		m.quats.push(i16view[start+4]);
-		m.quats.push(i16view[start+5]);
-		m.quats.push(i16view[start+6]);
-		m.quats.push(i16view[start+7]);
+		m.positions.push(RPC.uncompress(i16view[start+1 + i*8],'int16'));
+		m.positions.push(RPC.uncompress(i16view[start+2 + i*8],'int16'));
+		m.positions.push(RPC.uncompress(i16view[start+3 + i*8],'int16'));
+		m.quats.push(RPC.uncompress(i16view[start+4 + i*8],'int16'));
+		m.quats.push(RPC.uncompress(i16view[start+5 + i*8],'int16'));
+		m.quats.push(RPC.uncompress(i16view[start+6 + i*8],'int16'));
+		m.quats.push(RPC.uncompress(i16view[start+7 + i*8],'int16'));
 	    }
 	    break;
+
 	case COLLISION_CREATESHAPE:
 	    m.shapeType = i32view[2];
 	    switch(m.shapeType){
@@ -1907,12 +2010,15 @@ RPC.Remote = function(connection){
 		break;
 	    }
 	    break;
+
 	case WORLD_CREATEBODY:
+	    m.shapeId = f32view[2];
 	    m.mass = f32view[3];
 	    m.id = i32view[4];
 	    break;
+
 	default:
-	    throw new Error("Marshalling of ms of type "+m.type+" not implemented yet");
+	    throw new Error("UN-Marshalling of message type "+m.type+" not implemented yet");
 	    break;
 	}
 	return m;
@@ -1920,11 +2026,13 @@ RPC.Remote = function(connection){
 
     // Take care of an incoming message
     function onmessage(data){
+	that.downStats.accumulate(data.byteLength);
 	var message = that.unmarshal(data);
 	switch(message.type){
 
 	    // Commands with optional empty result
 	case BODY_SUBSCRIBE:
+	case BODY_SETPOSITION:
 	case NETWORK_PING:
 	case WORLD_STEP:
 	case WORLD_UPDATECOORDS:
@@ -1984,7 +2092,8 @@ RPC.Remote = function(connection){
 	}
 
 	// Send message
-	send(that.marshal(command));
+	var marshalled = that.marshal(command);
+	send(marshalled);
     };
 };
 
@@ -2037,7 +2146,81 @@ RPC.EventTarget = function () {
 	}
     };
 };
-if (typeof module !== 'undefined') {
+
+/**
+ * Lossy compress a float number into an integer.
+ * @param float num The number to compress
+ * @param string type 'uint8', 'int8', 'uint16', 'int16', 'int32' or 'uint32'
+ * @param float mini Optional. Minimum value of your number.
+ * @param float maxi Optional. Maximum value of your number.
+ * @param bool clamp Specify if the number should be clamped to be within the maxi/mini range. Recommended.
+ * @return int
+ */
+RPC.compress = function(num,type,mini,maxi,clamp){
+    var mm = maxmin(type);
+    var max = mm[0], min = mm[1];
+    clamp = clamp===undefined ? true : false;
+    mini = mini===undefined ? -1e3 : mini;
+    maxi = maxi===undefined ? 1e3 : maxi;
+
+    if(clamp){
+	if(num>maxi) num = maxi;
+	if(num<mini) num = mini;
+    }
+
+    return Math.floor((num+mini)/(maxi-mini) * (max-min) - min);
+};
+
+/**
+ * Uncompress an integer into a float.
+ * @param int num The number to uncompress
+ * @param string type See compress()
+ * @param float mini See compress()
+ * @param float maxi See compress()
+ * @return int
+ */
+RPC.uncompress = function(num,type,mini,maxi){
+    var mm = maxmin(type);
+    var max = mm[0], min = mm[1];
+    mini = mini===undefined ? -1e3 : mini;
+    maxi = maxi===undefined ? 1e3 : maxi;
+    return (num - min)/(max-min) * (maxi-mini) + mini;
+};
+
+// Get max and min given precision
+function maxmin(precision){
+    var max,min;
+    switch(precision){
+    case 'uint8':
+	min = 0;
+	max = 255;
+	break;
+    case 'int8':
+	min = -128;
+	max = 127;
+	break;
+    case 'uint16':
+	min = 0;
+	max = 65535;
+	break;
+    case 'int16':
+	min = -32768;
+	max = 32767;
+	break;
+    case 'int32':
+	min = -2147483648;
+	max = 2147483647;
+	break;
+    case 'uint32':
+	min = 0;
+	max = 4294967295;
+	break;
+    default:
+	throw new Error("Type "+precision+" not recognized.");
+	break;
+    }
+    return [max,min];
+}if (typeof module !== 'undefined') {
 	// export for node
 	module.exports = M3D;
 } else {

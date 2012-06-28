@@ -17,8 +17,17 @@
 $(document).ready(function () {
 
     var world = new M3D.WebSocketWorld("ws://<%=websockethost%>:<%=websocketport%>");
-    var renderer = new M3D.Renderer(world);
-    renderer.start();
+    world.addEventListener("opensocket",function(){
+      console.log("world:",world);
+      var renderer = new M3D.Renderer(world);
+      renderer.start();
+      var shape = world.createSphereShape(1);
+      var rb = world.createRigidBody(shape,10.0);
+      rb.setPosition(1,0,0);
+      setInterval(function(){
+        world.step(1/60);
+      },1000*1/60);
+    });
 
     // Stats
     var $stats = $("<div id=\"stats\"></div>");
@@ -36,9 +45,9 @@ $(document).ready(function () {
 	    return Math.round(num*pow)/pow;
 	}
 	var now = new Date().getTime();
-	$stats.html(round(world.downStats.average(now-1000),2)+" kb/s down, "+
-		    round(world.upStats.average(now-1000),2)+" kb/s up, "+
-		    round(1000*world.messageCountStats.frequency(now-1000),2)+" messages/s");
+	$stats.html(round(world.remote.downStats.average(now-1000),2)+" kb/s down, "+
+		    round(world.remote.upStats.average(now-1000),2)+" kb/s up, "/*+
+		    round(1000*world.messageCountStats.frequency(now-1000),2)+" messages/s"*/);
     },1000);
 
     world.addEventListener("closesocket", function(){

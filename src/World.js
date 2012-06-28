@@ -45,6 +45,14 @@ M3D.World = function(remote){
 		that.getRigidBodyById(e.command.id).sync = false;
 		break;
 
+	    case remote.BODY_SETPOSITION:
+		console.log(e.command);
+		var p = that.getRigidBodyById(e.command.id).position;
+		p.x = e.command.x;
+		p.y = e.command.y;
+		p.z = e.command.z;
+		break;
+
 	    case remote.WORLD_STEP:
 		// Cannot do much about this command here.
 		// Implement in subclasses!
@@ -75,6 +83,7 @@ M3D.World = function(remote){
 		    rb.quaternion.z = qz;
 		    rb.quaternion.w = qw;
 		}
+		that.dispatchEvent({type:"update"});
 		break;
 
 	    default:
@@ -117,12 +126,13 @@ M3D.World = function(remote){
 	var s = new M3D.Sphere(radius);
 	s.remote = this.remote;
 	s.id = idCount++;
-	this.remote.exec({
+	var m = {
 	    type : remote.COLLISION_CREATESHAPE,
 	    id : s.id,
 	    shapeType : M3D.Shape.SPHERE,
 	    radius : radius
-	});
+	};
+	this.remote.exec(m);
 	return s;
     };
 
@@ -136,6 +146,7 @@ M3D.World = function(remote){
 	r.remote = this.remote;
 	this.bodies.push(r);
 	this.remote.exec({type:remote.WORLD_CREATEBODY,id:r.id,shapeId:shape.id,mass:mass});
+	this.dispatchEvent({type:'change'});
 	return r;
     };
 
@@ -235,6 +246,7 @@ M3D.World = function(remote){
     };
 }
 
+/*
 M3D.World.prototype.updateWorldFromJSON = function(json){
     var that = this;
     // Remove old bodies
@@ -270,15 +282,7 @@ M3D.World.prototype.updateWorldFromJSON = function(json){
 	return body;
     }
 }
-
-
-// User interaction messages and the attached data
-M3D.World.MOUSEUP   = 0; // Nothing
-M3D.World.MOUSEDOWN = 1; // Position, 3 x Float32
-M3D.World.MOUSEMOVE = 2; // Position, 3 x Float32
-M3D.World.KEYDOWN   = 3; // Key code, 1 x Float32
-M3D.World.KEYUP     = 4; // Key code, 1 x Float32
-M3D.World.SHOOT     = 5; // Origin +direction, 6 x Float32
+*/
 
 /**
  * @class RigidBody
@@ -334,6 +338,15 @@ M3D.RigidBody = function(shape,mass){
 	    else
 		this.remote.exec({type:this.remote.BODY_UNSUBSCRIBE,id:this.id});
 	}
+    };
+
+    this.setPosition = function(x,y,z){
+	console.log("set pos of "+this.id);
+	this.remote.exec({type:this.remote.BODY_SETPOSITION,
+			  id:this.id,
+			  x:x,
+			  y:y,
+			  z:z});
     };
 }
 

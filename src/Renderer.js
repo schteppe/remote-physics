@@ -339,10 +339,10 @@ M3D.Renderer.prototype.start = function(){
 		var ray = that.getRay(lastx,lasty);
 		var origin = new M3D.Vec3(ray.origin.x, ray.origin.y, ray.origin.z);
 		var dir = new M3D.Vec3(ray.direction.x, ray.direction.y, ray.direction.z);
-		that.world.shootShape(ray.origin,ray.direction);
+		//that.world.shootShape(ray.origin,ray.direction);
 		break;
 	    default:
-		that.world.keyDown(e.keyCode);
+		//that.world.keyDown(e.keyCode);
 		break;
 	    }
 	}
@@ -351,7 +351,7 @@ M3D.Renderer.prototype.start = function(){
 	    switch(e.keyCode){
 	    case 99: break;
 	    case 13: break;
-	    default: that.world.keyUp(e.keyCode); break;
+	    default: /*that.world.keyUp(e.keyCode);*/ break;
 	    }
 	}
     }).mousedown(function(e){
@@ -379,13 +379,13 @@ M3D.Renderer.prototype.start = function(){
 	    // Make it face toward the camera
 	    that.planeContainer.quaternion.setFromRotationMatrix(that.camera.matrixWorld);
 	    that.setClickMarker(hit.point.x, hit.point.y, hit.point.z);
-	    that.world.addMouseJoint(hit.body,hit.point);
+	    //that.world.addMouseJoint(hit.body,hit.point);
 	}
 	mousedown = true;
     }).mouseup(function(e){
 	if(!e.ctrlKey)
 	    return;
-	that.world.removeMouseJoints();
+	//that.world.removeMouseJoints();
 	that.removeClickMarker();
 	mousedown = false;
     }).mousemove(function(e){
@@ -401,7 +401,7 @@ M3D.Renderer.prototype.start = function(){
 	    var hit = that.clickTest(e,[that.plane]);
 	    if(hit){
 		that.setClickMarker(hit.point.x, hit.point.y, hit.point.z);
-		that.world.moveMouseJoint(hit.point);
+		//that.world.moveMouseJoint(hit.point);
 	    }
 	    
 	    lastx = x;

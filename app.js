@@ -58,7 +58,7 @@ app.get('/', function(req, res){
 	// Get lua files from folder
 	var demos = [];
 	for(var i=0; i<files.length; i++){
-	    if(files[i].match(/[a-z]+\.lua/))
+	    if(files[i].match(/[a-z]+\.lua$/))
 		demos.push(files[i]);
 	};
 	
@@ -98,23 +98,28 @@ wss.on('request', function(req){
     var args = [luafile];
     for(var i in config.agxFlags)
 	args.push(config.agxFlags[i]);
-    var world = new M3D.AgxWorld(config.agxCommand, args);
+    var remote = new RPC.Remote(connection);
+    var world = new M3D.AgxWorld(config.agxCommand, args, remote);
 
     world.addEventListener('construct',function(){
 	// Send world info (geometries etc) as JSON
-	connection.send(world.toJSONString());
+	//connection.send(world.toJSONString());
 
 	// Simulation loop
+	/*
 	setInterval(function(){
-	    world.step();
+	    world.stepAgx();
 	}, world.dt*1000);
+	*/
     });
 
     var broadCastCount = 0;
     world.addEventListener('change',function(){
-	if(broadCastCount % (world.skip+1) == 0)
+	/*
+	  if(broadCastCount % (world.skip+1) == 0)
 	    connection.send(world.toBuffer());
 	broadCastCount++;
+	*/
     });
 
     // Message
@@ -123,7 +128,7 @@ wss.on('request', function(req){
 	case 'utf8':
 	    break;
 	case 'binary':
-	    world.handleBufferMessage(message.binaryData);
+	    //world.handleBufferMessage(message.binaryData);
 	    break;
 	}
     });

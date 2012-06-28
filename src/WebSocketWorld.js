@@ -11,7 +11,6 @@ M3D.WebSocketWorld = function(socketUrl){
     var mousedown = false;
     var dt = 1/60; // framerate
 
-    M3D.World.call(this);
     var that = this;
 
     // Stats
@@ -22,10 +21,13 @@ M3D.WebSocketWorld = function(socketUrl){
     // events
     var openEvent = {type:'opensocket'};
     var closeEvent = {type:'closesocket'};
-    var updateEvent = {type:'update'};
-    var changeEvent = {type:'change'};
+    var updateEvent = {type:'update'}; // if bodies moved
+    var changeEvent = {type:'change'}; // if bodies were added/removed
 
     var ws = new WebSocket(socketUrl);
+
+    var remote = new RPC.Remote(ws);
+    M3D.World.call(this,remote);
 
     // Open / close socket
     ws.onopen = function(){
@@ -35,6 +37,7 @@ M3D.WebSocketWorld = function(socketUrl){
 	that.dispatchEvent(closeEvent);
     };
 
+    /*
     function updateWorldFromBuffer(buf){
 	var a = new Float32Array(buf);
 	// Read position data
@@ -136,10 +139,10 @@ M3D.WebSocketWorld = function(socketUrl){
 	f2arr[0] = M3D.World.KEYUP;
 	f2arr[1] = keyCode;
 	sendBuffer(f2buf);
-    }
+    }*/
 
     var messageCount = 0;
-    ws.onmessage = function(e){
+    /*ws.onmessage = function(e){
 	that.messageCountStats.accumulate(1);
 	messageCount++;
 	if(e.data && e.data instanceof Blob){
@@ -147,7 +150,7 @@ M3D.WebSocketWorld = function(socketUrl){
 	    var fr = new FileReader();
 	    fr.onload = function(f){
 		that.downStats.accumulate(fr.result.byteLength);
-		updateWorldFromBuffer(fr.result);
+		//updateWorldFromBuffer(fr.result);
 		that.dispatchEvent(updateEvent);
 
 		// If skipping is on, schedule interpolation
@@ -162,7 +165,7 @@ M3D.WebSocketWorld = function(socketUrl){
 	} else if(typeof e.data == "string"){
 	    // We got a world description in JSON. Parse it.
 	    try {
-		var world = JSON.parse(e.data/*.match(/\[.*\]/)*/);
+	    var world = JSON.parse(e.data); // .match(/\[.*\]/)
 	    } catch(err){
 		console.log(e.data);
 		throw err;
@@ -170,66 +173,34 @@ M3D.WebSocketWorld = function(socketUrl){
 	    that.updateWorldFromJSON(world);
 	    that.dispatchEvent(changeEvent);
 	}
-    };
+	};
+    */
 
-    /**
-     * @fn addMouseJoint 
-     * @memberof WebSocketWorld
-     * @brief Add a mouse joint to the simulation at a specified point.
-     * @param RigidBody body
-     * @param Vec3 point
-     */
+    /*
     this.addMouseJoint = function(body,point){
 	sendMouseDown(point.x, point.y, point.z,body.id);
     };
 
-    /**
-     * @fn removeMouseJoints
-     * @memberof WebSocketWorld
-     * @brief Remove mouse joints from the simulation.
-     */
     this.removeMouseJoints = function(){
 	sendMouseUp();
     };
 
-    /**
-     * @fn moveMouseJoint
-     * @memberof WebSocketWorld
-     * @brief Move the current mouse joint to a given point.
-     * @param Vec3 point
-     */
     this.moveMouseJoint = function(point){
 	sendMouseMove(point.x,
 		      point.y,
 		      point.z);
     };
-
-    /**
-     * @fn keyDown
-     * @memberof WebSocketWorld
-     * @param int keyCode
-     */
-    this.keyDown = function(keyCode){
+this.keyDown = function(keyCode){
 	sendKeyDown(keyCode);
     };
 
-    /**
-     * @fn keyDown
-     * @memberof WebSocketWorld
-     * @param int keyCode
-     */
     this.keyUp = function(keyCode){
 	sendKeyUp(keyCode);
     };
 
-    /**
-     * @fn shootShape
-     * @memberof WebSocketWorld
-     * @brief Adds a shape and gives it a velocity
-     */
     this.shootShape = function(origin,direction){
 	
-    }
+    }*/
 };
 
 M3D.WebSocketWorld.prototype = new M3D.World();

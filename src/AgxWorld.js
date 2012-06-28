@@ -6,9 +6,45 @@
  * @param int id A unique id for this session. Used to create unique fifos.
  * @param RPC.Remote remote
  */
-M3D.AgxWorld = function(command,flags,id,remote){
+M3D.AgxWorld = function(command,flags,remote){
     M3D.World.call(this,remote);
     var that = this;
+
+    var writeToAgx = function(){};
+    var writeToAgxCommands = [];
+
+    remote.addEventListener('command',function(e){
+	switch(e.command.type){
+	case remote.WORLD_STEP:
+	    // writeToAgxCommands.push("step"); // dont have to
+	    that.stepAgx();
+	    break;
+
+	case remote.COLLISION_CREATESHAPE:
+	    switch(e.command.shapeType){
+	    case M3D.Shape.SPHERE:
+		writeToAgxCommands.push("CREATESHAPE "+e.command.shapeType+" "+e.command.id+" "+e.command.radius);
+		break;
+	    default:
+		throw new Error("Shape "+e.command.shapeType+" not implemented yet!");
+		break;
+	    }
+	    break;
+
+	case remote.WORLD_CREATEBODY:    
+	    writeToAgxCommands.push("CREATEBODY "+e.command.shapeId+" "+e.command.mass+" "+e.command.id);
+	    break;
+
+	case remote.BODY_SETPOSITION:    
+	    writeToAgxCommands.push("SETBODYPOSITION "+e.command.id+" "+[e.command.x,e.command.y,e.command.z].join(" "));
+	    break;
+
+	default:
+	    throw new Error("Marshalling of messages of type "+e.command.type+" not implemented yet");
+	    break;
+	}
+	writeToAgx();
+    });
 
     // events
     var changeEvent = {type:'change'};
@@ -19,24 +55,33 @@ M3D.AgxWorld = function(command,flags,id,remote){
     var worldBuffer = [];
     var worldJson = null;
 
-    var writeToAgx = function(){};
-    var writeToAgxCommands = [];
-
-    this.step = function(){
+    this.stepAgx = function(){
 	if(worldBuffer.length>0){
 	    var data = worldBuffer.shift();
+	    var ids = [],
+	    positions = [],
+	    quats = [];
 	    for(var i=0; i<data.positions.length && i<that.bodies.length; i++){
 		var b = that.bodies[i]; 
 		data.positions[i].copy(b.position);
 		data.quats[i].copy(b.quaternion);
 		data.rotVelocities[i].copy(b.rotVelocity);
 		data.velocities[i].copy(b.velocity);
+		ids.push(b.id);
+		positions.push(b.position.x);
+		positions.push(b.position.y);
+		positions.push(b.position.z);
+
+		quats.push(b.quaternion.x);
+		quats.push(b.quaternion.y);
+		quats.push(b.quaternion.z);
+		quats.push(b.quaternion.w);
 	    }
+	    remote.exec({type:remote.WORLD_UPDATECOORDS,ids:ids,positions:positions,quats:quats});
 	    that.dispatchEvent(changeEvent);
 	}
-	if(worldBuffer.length<1){
+	if(worldBuffer.length<1)
 	    writeToAgx();
-	}
     };
 
     this.toJSONString = function(){
@@ -48,6 +93,7 @@ M3D.AgxWorld = function(command,flags,id,remote){
 	return JSON.parse(worldJson);
     }
 
+    /*
     var compressedQuat = new M3D.Vec3();
     this.toBuffer = function(){
 	// Compose world data buffer
@@ -105,7 +151,10 @@ M3D.AgxWorld = function(command,flags,id,remote){
 	}
 	return buf;
     };
+    */
 
+    /*
+      // @todo move to command event of remote
     this.handleBufferMessage = function(buf){
 	// Move joint
 	var eventType = parseInt(buf.readFloatLE(0));
@@ -139,6 +188,7 @@ M3D.AgxWorld = function(command,flags,id,remote){
 	    break;
 	}
     }
+    */
 
     var spawn = require('child_process').spawn;
     var exec = require('child_process').exec;
@@ -193,10 +243,9 @@ M3D.AgxWorld = function(command,flags,id,remote){
 		writeToAgx = function(callback){
 		    writeToAgxCommands.push("step");
 		    var out = writeToAgxCommands.join("|")+"\n";
-		    //var out = (str == undefined ? "step\n" : str);
+		    //console.log("writing "+out+" to agx");
 		    if(!killed)
 			fs.writeSync(fd,out);
-		    //lastWriteToAgx = new Date().getTime();
 		    writeToAgxCommands = [];
 		    wrote = true;
 		    callback && callback();
@@ -218,15 +267,15 @@ M3D.AgxWorld = function(command,flags,id,remote){
 
 	    var constructed = false;
 	    function handleChunk(s){
+		//console.log("Got "+s+" from agx");
 		var sent = false;
 		if(s[0] == "["){
 		    // Got JSON list of body data
 		    worldJson = s;
-		    that.updateWorldFromJSON(JSON.parse(s));
+		    //that.updateWorldFromJSON(JSON.parse(s));
 		    that.dispatchEvent(upgradeEvent);
-		    if(!constructed){
+		    if(!constructed)
 			that.dispatchEvent(constructEvent);
-		    }
 			
 		} else {
 		    var rows = s.split("|");
@@ -239,11 +288,10 @@ M3D.AgxWorld = function(command,flags,id,remote){
 		    if(that.sendVelocities)
 			n = 13; // 6 extra:  wx, wy, wz, vx vy vz
 
-		    for(var j=0; j<rows.length && rows[j]!="\n"; j++){
+		    for(var j=0; j<rows.length && rows[j]!="\n" && rows[j]!=""; j++){
 			var nums = rows[j].split(" ");
-			if(nums.length!=n){
-			    console.log(rows.length + "... Row format wrong? ",rows[j]);
-			}
+			if(nums.length!=n)
+			    console.log("Num rows: "+rows.length + "... Row format wrong? Row:",rows[j]);
 			for(var i=0; i<nums.length && !isNaN(Number(nums[i])) && nums[i]!="\n"; i+=n){
 			    positions.push(new M3D.Vec3(Number(nums[i]),
 							Number(nums[i+1]),
