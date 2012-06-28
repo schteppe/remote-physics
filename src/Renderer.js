@@ -1,5 +1,5 @@
 /**
- * @class Renderer
+ * @class M3D.Renderer
  * @brief Render the scene
  * @param World world
  */
@@ -22,12 +22,12 @@ M3D.Renderer = function(world){
 
     /**
      * @property World world
-     * @memberof Renderer
+     * @memberof M3D.Renderer
      */
     this.world = world;
     /**
      * @property float dt
-     * @memberof Renderer
+     * @memberof M3D.Renderer
      */
     this.dt = 1/60;
 
@@ -42,7 +42,7 @@ M3D.Renderer = function(world){
 
 /**
  * @fn setClickMarker
- * @memberof Renderer
+ * @memberof M3D.Renderer
  * @brief Set the position of a red pick marker in the scene.
  * @param float x
  * @param float y
@@ -62,7 +62,7 @@ M3D.Renderer.prototype.setClickMarker = function(x,y,z){
 
 /**
  * @fn removeClickMarker
- * @memberof Renderer
+ * @memberof M3D.Renderer
  * @brief Remove the click marker from the scene if there is one.
  */
 M3D.Renderer.prototype.removeClickMarker = function(){
@@ -78,6 +78,13 @@ function screenToWorld(screenPos,windowHalfX,windowHalfY,camera){
     return worldPos;
 }
 
+/**
+ * @fn getRay
+ * @memberof M3D.Renderer
+ * @param int screenX
+ * @param int screenY
+ * @return THREE.Ray
+ */
 M3D.Renderer.prototype.getRay = function(screenX,screenY){
     var from = screenToWorld(new THREE.Vector3(screenX,screenY,0.5),
 			     window.innerWidth / 2,
@@ -94,7 +101,7 @@ M3D.Renderer.prototype.getRay = function(screenX,screenY){
 
 /**
  * @fn Use in MouseEvents to click the screen and get the 3D point that you clicked on.
- * @memberof Renderer
+ * @memberof M3D.Renderer
  * @param MouseEvent e
  * @param Array targets Optional. If given an array of THREE.Mesh objects it will check against those. @todo: work with RigidBody objects instead.
  * @return Object An object with properties: body, point @todo make a class for this?
@@ -133,9 +140,9 @@ M3D.Renderer.prototype.clickTest = function(e,targets){
 
 /**
  * @fn setScreenPerpCenter
- * @memberof Renderer
+ * @memberof M3D.Renderer
  * @brief For making mouse movement in a plane perpendicular to the camera direction. Set the starting point.
- * @param Vec3 point
+ * @param M3D.Vec3 point
  */
 M3D.Renderer.prototype.setScreenPerpCenter = function(point){
     this.mouseCenter = hit.point;
@@ -161,7 +168,7 @@ M3D.Renderer.prototype.setScreenPerpCenter = function(point){
 
 /**
  * @fn moveScreenPerp
- * @memberof Renderer
+ * @memberof M3D.Renderer
  * @brief Move the plane movement point in the plane defined using setScreenPerpCenter().
  * @param MouseEvent e
  * @return Vec3 The new point in the plane.
@@ -185,7 +192,7 @@ M3D.Renderer.prototype.moveScreenPerp = function(e){
 
 /**
  * @fn start
- * @memberof Renderer
+ * @memberof M3D.Renderer
  * @brief Start the rendering of the scene.
  */
 M3D.Renderer.prototype.start = function(){
@@ -433,7 +440,7 @@ M3D.Renderer.prototype.updateVisuals = function(){
 
 /**
  * @fn rebuildScene
- * @memberof Renderer
+ * @memberof M3D.Renderer
  * @brief Builds the scene.
  */
 M3D.Renderer.prototype.rebuildScene = function(){

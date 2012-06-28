@@ -1,5 +1,5 @@
 /**
- * @class World
+ * @class M3D.World
  * @brief A description of a physics world
  * @param RPC.Remote remote
  */
@@ -10,7 +10,7 @@ M3D.World = function(remote){
 
     /**
      * @property RPC.Remote remote
-     * @memberof World
+     * @memberof M3D.World
      * @brief A remote sync RPC object
      */
     this.remote = remote;
@@ -94,18 +94,30 @@ M3D.World = function(remote){
     }
 
     /**
-     * @property array bodies
-     * @memberof World
+     * @property Array bodies
+     * @memberof M3D.World
      */
     this.bodies = [];
+    /**
+     * @property array shapes
+     * @memberof M3D.World
+     */
     this.shapes = [];
     
+    /**
+     * @fn array getShapeById
+     * @memberof M3D.World
+     */
     this.getShapeById = function(id){
 	for(var i=0; i<this.shapes.length; i++)
 	    if(this.shapes[i].id == id)
 		return this.shapes[i];
     }
     
+    /**
+     * @fn array getRigidBodyById
+     * @memberof M3D.World
+     */
     this.getRigidBodyById = function(id){
 	for(var i=0; i<this.bodies.length; i++)
 	    if(this.bodies[i].id == id)
@@ -114,7 +126,7 @@ M3D.World = function(remote){
 
     /**
      * @fn clear
-     * @memberof World
+     * @memberof M3D.World
      * @brief Deletes all bodies
      */
     this.clear = function(){
@@ -122,6 +134,11 @@ M3D.World = function(remote){
 	idCount = 0;
     };
 
+    /**
+     * @fn createSphereShape
+     * @memberof M3D.World
+     * @param float radius
+     */
     this.createSphereShape = function(radius){
 	var s = new M3D.Sphere(radius);
 	s.remote = this.remote;
@@ -136,10 +153,22 @@ M3D.World = function(remote){
 	return s;
     };
 
+    /**
+     * @fn step
+     * @memberof M3D.World
+     * @param float dt
+     * @param function callback
+     */
     this.step = function(dt,callback){
 	this.remote.exec({type:remote.WORLD_STEP,dt:dt},callback);
     };
 
+    /**
+     * @fn createRigidBody
+     * @memberof M3D.World
+     * @param M3D.Shape shape
+     * @param float mass
+     */
     this.createRigidBody = function(shape,mass){
 	var r = new M3D.RigidBody(shape,mass);
 	r.id = idCount++;
@@ -151,6 +180,8 @@ M3D.World = function(remote){
     };
 
     /**
+     * @fn setAllBodyCoordinates
+     * @memberof M3D.World
      * @brief Sets all body coordinates (quats and positions)
      * @param array ids
      * @param array positions
@@ -196,32 +227,38 @@ M3D.World = function(remote){
 
     /**
      * @property bool useQuatCompression
-     * @memberof World
+     * @memberof M3D.World
      * @brief Use 3 values for transferring quats instead of 4
      */
     this.useQuatCompression = true;
 
     /**
      * @property bool sendVelocities
-     * @memberof World
+     * @memberof M3D.World
      * @brief Send body velocities from server to client to be able to interpolate
      */
     this.sendVelocities = true;
 
     /**
      * @property float dt
-     * @memberof World
+     * @memberof M3D.World
      * @brief timestep
      */
     var dt = this.dt = 1/60;
-    this.skip = 3; // How many timesteps to skip per timestep. Set to zero to stream without interpolation
+
+    /**
+     * @property int skip
+     * @memberof M3D.World
+     * @brief How many timesteps to skip per timestep. Set to zero to stream without interpolation
+     */
+    this.skip = 3;
 
     var w = new M3D.Quat();
     var wq = new M3D.Vec3();
 
     /**
      * @fn interpolate
-     * @memberof World
+     * @memberof M3D.World
      * @brief Steps the system by using the current timestep and body velocities. Can with advantage be used in between server-to-client messages to make the simulation look more smooth on the client.
      */
     this.interpolate = function(){
@@ -285,9 +322,9 @@ M3D.World.prototype.updateWorldFromJSON = function(json){
 */
 
 /**
- * @class RigidBody
+ * @class M3D.RigidBody
  * @brief Rigid body.
- * @param Shape shape
+ * @param M3D.Shape shape
  */
 M3D.RigidBody = function(shape,mass){
     /**
@@ -326,10 +363,23 @@ M3D.RigidBody = function(shape,mass){
      */
     this.rotVelocity = new M3D.Vec3();
 
-    // remote sync object
+    /**
+     * @property RPC.Remote remote
+     * @memberof RigidBody
+     * @brief Remote sync object
+     */
     this.remote = null;
+    /**
+     * @property bool sync
+     * @memberof RigidBody
+     */
     this.sync = true;
 
+    /**
+     * @fn setAutoUpdate
+     * @memberof RigidBody
+     * @param bool autoUpdate
+     */
     this.setAutoUpdate = function(autoUpdate){
 	if(this.sync != autoUpdate){
 	    this.sync = autoUpdate;
@@ -340,6 +390,13 @@ M3D.RigidBody = function(shape,mass){
 	}
     };
 
+    /**
+     * @fn setPosition
+     * @memberof RigidBody
+     * @param float x
+     * @param float y
+     * @param float z
+     */
     this.setPosition = function(x,y,z){
 	console.log("set pos of "+this.id);
 	this.remote.exec({type:this.remote.BODY_SETPOSITION,
@@ -351,7 +408,7 @@ M3D.RigidBody = function(shape,mass){
 }
 
 /**
- * @class Shape
+ * @class M3D.Shape
  * @brief Base class for shapes.
  * @param int type
  */
@@ -364,7 +421,7 @@ M3D.Shape = function(type){
 }
 
 /**
- * @class Box
+ * @class M3D.Box
  * @brief Box shape.
  * @param float ex Half-extents in x.
  * @param float ey Half-extents in y.
@@ -376,23 +433,23 @@ M3D.Box = function(ex,ey,ez){
 
     /**
      * @property float ex Half extents in x
-     * @memberof Box
+     * @memberof M3D.Box
      */
     this.ex = ex;
     /**
      * @property float ey Half extents in y
-     * @memberof Box
+     * @memberof M3D.Box
      */
     this.ey = ey;
     /**
      * @property float ez Half extents in z
-     * @memberof Box
+     * @memberof M3D.Box
      */
     this.ez = ez;
 }
 
 /**
- * @class Sphere
+ * @class M3D.Sphere
  * @brief Sphere shape.
  * @param float radius
  */
@@ -400,20 +457,29 @@ M3D.Sphere = function(radius){
     M3D.Shape.call(this,M3D.Shape.SPHERE);
     /**
      * @property float radius
-     * @memberof Sphere
+     * @memberof M3D.Sphere
      */
     this.radius = radius;
 }
 
 /**
- * @class Cylinder
+ * @class M3D.Cylinder
  * @brief Cylinder shape.
  * @param float radius
  * @param float height
  */
 M3D.Cylinder = function(radius,height){
     M3D.Shape.call(this,M3D.Shape.CYLINDER);
+
+    /**
+     * @property float radius
+     * @memberof M3D.Cylinder
+     */
     this.radius = radius;
+    /**
+     * @property float height
+     * @memberof M3D.Cylinder
+     */
     this.height = height;
 }
 

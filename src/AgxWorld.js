@@ -1,10 +1,10 @@
 /**
- * @class AgxWorld
+ * @class M3D.AgxWorld
  * @brief A World being synchronized with Agx.
  * @param string command The command for starting Agx
  * @param Array flags Flags to be passed when starting agx, e.g. ["filename.lua","--agxOnly"]
- * @param int id A unique id for this session. Used to create unique fifos.
  * @param RPC.Remote remote
+ * @extends M3D.World
  */
 M3D.AgxWorld = function(command,flags,remote){
     M3D.World.call(this,remote);
@@ -54,7 +54,12 @@ M3D.AgxWorld = function(command,flags,remote){
     var agxEndEvent = {type:'end'};
     var worldBuffer = [];
     var worldJson = null;
-
+    
+    /**
+     * @fn stepAgx
+     * @memberof M3D.AgxWorld
+     * @brief Step AgX
+     */
     this.stepAgx = function(){
 	if(worldBuffer.length>0){
 	    var data = worldBuffer.shift();
@@ -84,11 +89,23 @@ M3D.AgxWorld = function(command,flags,remote){
 	    writeToAgx();
     };
 
+    /**
+     * @fn toJSONString
+     * @memberof M3D.AgxWorld
+     * @brief Get a JSON representation of the world.
+     * @return string
+     */
     this.toJSONString = function(){
 	// Same as in AgX
 	return worldJson;
     };
 
+    /**
+     * @fn toJSON
+     * @memberof M3D.AgxWorld
+     * @brief Get a JSON representation of the world.
+     * @return Object
+     */
     this.toJSON = function(){
 	return JSON.parse(worldJson);
     }
@@ -221,6 +238,11 @@ M3D.AgxWorld = function(command,flags,remote){
 	console.log("AgX stderr: ---> "+data.toString()+" <--- ");
     });
 
+    /**
+     * @fn destruct
+     * @memberof M3D.AgxWorld
+     * @brief Kills the external AgX process
+     */
     this.destruct = function(){
 	agx.kill('SIGHUP');
 	killed = true;

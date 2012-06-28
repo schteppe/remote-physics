@@ -1,7 +1,8 @@
 /**
- * @class WebSocketWorld
+ * @class M3D.WebSocketWorld
  * @brief A World being synchronized over a network
  * @param string socketUrl
+ * @extends M3D.World
  */
 M3D.WebSocketWorld = function(socketUrl){
 

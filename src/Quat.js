@@ -1,5 +1,5 @@
 /**
- * @class Quat
+ * @class M3D.Quat
  * @brief Quaternion class.
  */
 M3D.Quat = function(x,y,z,w){
@@ -84,7 +84,7 @@ M3D.Quat = function(x,y,z,w){
 
     /**
      * @fn normalize
-     * @memberof CANNON.Quaternion
+     * @memberof Quat
      * @brief Normalize the quaternion. Note that this changes the values of the quaternion.
      */
     this.normalize = function(){
@@ -127,6 +127,12 @@ M3D.Quat = function(x,y,z,w){
 	return target;
     };
 
+    /**
+     * @fn copy
+     * @memberof Quat
+     * @brief Copy the quaternion to another Quat instance
+     * @param Quat target
+     */ 
     this.copy = function ( target ) {
 	target.x = this.x;
 	target.y = this.y;

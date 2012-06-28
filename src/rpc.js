@@ -19,7 +19,15 @@ RPC.Remote = function(connection){
     var EMPTYRESULT =           this.EMPTYRESULT =           8;
     var REPORT =                this.REPORT =                9;
 
+    /**
+     * @property M3D.TimeStats downStats
+     * @memberof RPC.Remote
+     */
     this.downStats = new M3D.TimeStats();
+    /**
+     * @property M3D.TimeStats upStats
+     * @memberof RPC.Remote
+     */
     this.upStats = new M3D.TimeStats();
 
     RPC.EventTarget.call(this);
@@ -80,7 +88,13 @@ RPC.Remote = function(connection){
     } else
 	throw new Error("Connection type not recognized.");
 
-    // Projects data onto an arraybuffer and returns it
+    /**
+     * @fn marshal
+     * @memberof RPC.Remote
+     * @brief Projects data onto an arraybuffer and returns it
+     * @param Object message
+     * @return ArrayBuffer
+     */ 
     this.marshal = function(message){
 	var headlen = 4*2; // id,type as 2 int32's
 	var i32view, f32view, i8view, ui8view, i16view;
@@ -172,7 +186,13 @@ RPC.Remote = function(connection){
 	//return data;
     }
 
-    // Must return an object with properties type and id
+    /**
+     * @fn unmarshal
+     * @memberof RPC.Remote
+     * @brief Converts back a message from an arraybuffer
+     * @param ArrayBuffer data
+     * @return Object
+     */ 
     this.unmarshal = function(data){
 	//var message = JSON.parse(data); // todo: use binary array buffers
 
@@ -372,7 +392,8 @@ RPC.EventTarget = function () {
 };
 
 /**
- * Lossy compress a float number into an integer.
+ * @fn RPC.compress
+ * @brief Lossy compress a float number into an integer.
  * @param float num The number to compress
  * @param string type 'uint8', 'int8', 'uint16', 'int16', 'int32' or 'uint32'
  * @param float mini Optional. Minimum value of your number.
@@ -396,12 +417,13 @@ RPC.compress = function(num,type,mini,maxi,clamp){
 };
 
 /**
- * Uncompress an integer into a float.
+ * @fn RPC.uncompress
+ * @brief Uncompress an integer into a float.
  * @param int num The number to uncompress
  * @param string type See compress()
  * @param float mini See compress()
  * @param float maxi See compress()
- * @return int
+ * @return float
  */
 RPC.uncompress = function(num,type,mini,maxi){
     var mm = maxmin(type);

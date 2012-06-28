@@ -1,31 +1,31 @@
 (function(){
 
 M3D = {};/**
- * @class Vec3
+ * @class M3D.Vec3
  * @brief Vector class.
  */
 M3D.Vec3 = function(x,y,z){
     /**
      * @property float x
-     * @memberof Vec3
+     * @memberof M3D.Vec3
      */
     this.x = x===undefined ? 0 : x;
 
     /**
      * @property float y
-     * @memberof Vec3
+     * @memberof M3D.Vec3
      */
     this.y = y===undefined ? 0 : y;
 
     /**
      * @property float z
-     * @memberof Vec3
+     * @memberof M3D.Vec3
      */
     this.z = z===undefined ? 0 : z;
 
     /**
      * @fn set
-     * @memberof Vec3
+     * @memberof M3D.Vec3
      * @param float x
      * @param float y
      * @param float z
@@ -36,17 +36,22 @@ M3D.Vec3 = function(x,y,z){
 	this.z=z;
     }
 
+    /**
+     * @fn dot
+     * @memberof M3D.Vec3
+     * @param M3D.Vec3 v
+     */
     this.dot = function(v){
 	return this.x*v.x + this.y*v.y + this.z*v.z;
     }
 
     /**
      * @fn cross
-     * @memberof CANNON.Vec3
+     * @memberof M3D.Vec3
      * @brief Vector cross product
-     * @param CANNON.Vec3 v
-     * @param CANNON.Vec3 target Optional. Target to save in.
-     * @return CANNON.Vec3
+     * @param M3D.Vec3 v
+     * @param M3D.Vec3 target Optional. Target to save in.
+     * @return M3D.Vec3
      */
     this.cross = function(v,target){
 	target = target || new M3D.Vec3();
@@ -60,17 +65,27 @@ M3D.Vec3 = function(x,y,z){
 	return target;
     };
 
+    /**
+     * @fn copy
+     * @memberof M3D.Vec3
+     * @param M3D.Vec3 target
+     */
     this.copy = function ( target ) {
 	target.x = this.x;
 	target.y = this.y;
 	target.z = this.z;
     }
 
+    /**
+     * @fn toString
+     * @memberof M3D.Vec3
+     * @return string
+     */
     this.toString = function(){
 	return "("+[this.x,this.y,this.z].join(",")+")";
     };
 }/**
- * @class Quat
+ * @class M3D.Quat
  * @brief Quaternion class.
  */
 M3D.Quat = function(x,y,z,w){
@@ -155,7 +170,7 @@ M3D.Quat = function(x,y,z,w){
 
     /**
      * @fn normalize
-     * @memberof CANNON.Quaternion
+     * @memberof Quat
      * @brief Normalize the quaternion. Note that this changes the values of the quaternion.
      */
     this.normalize = function(){
@@ -198,6 +213,12 @@ M3D.Quat = function(x,y,z,w){
 	return target;
     };
 
+    /**
+     * @fn copy
+     * @memberof Quat
+     * @brief Copy the quaternion to another Quat instance
+     * @param Quat target
+     */ 
     this.copy = function ( target ) {
 	target.x = this.x;
 	target.y = this.y;
@@ -205,7 +226,7 @@ M3D.Quat = function(x,y,z,w){
 	target.w = this.w;
     }
 }/**
- * @class Renderer
+ * @class M3D.Renderer
  * @brief Render the scene
  * @param World world
  */
@@ -228,12 +249,12 @@ M3D.Renderer = function(world){
 
     /**
      * @property World world
-     * @memberof Renderer
+     * @memberof M3D.Renderer
      */
     this.world = world;
     /**
      * @property float dt
-     * @memberof Renderer
+     * @memberof M3D.Renderer
      */
     this.dt = 1/60;
 
@@ -248,7 +269,7 @@ M3D.Renderer = function(world){
 
 /**
  * @fn setClickMarker
- * @memberof Renderer
+ * @memberof M3D.Renderer
  * @brief Set the position of a red pick marker in the scene.
  * @param float x
  * @param float y
@@ -268,7 +289,7 @@ M3D.Renderer.prototype.setClickMarker = function(x,y,z){
 
 /**
  * @fn removeClickMarker
- * @memberof Renderer
+ * @memberof M3D.Renderer
  * @brief Remove the click marker from the scene if there is one.
  */
 M3D.Renderer.prototype.removeClickMarker = function(){
@@ -284,6 +305,13 @@ function screenToWorld(screenPos,windowHalfX,windowHalfY,camera){
     return worldPos;
 }
 
+/**
+ * @fn getRay
+ * @memberof M3D.Renderer
+ * @param int screenX
+ * @param int screenY
+ * @return THREE.Ray
+ */
 M3D.Renderer.prototype.getRay = function(screenX,screenY){
     var from = screenToWorld(new THREE.Vector3(screenX,screenY,0.5),
 			     window.innerWidth / 2,
@@ -300,7 +328,7 @@ M3D.Renderer.prototype.getRay = function(screenX,screenY){
 
 /**
  * @fn Use in MouseEvents to click the screen and get the 3D point that you clicked on.
- * @memberof Renderer
+ * @memberof M3D.Renderer
  * @param MouseEvent e
  * @param Array targets Optional. If given an array of THREE.Mesh objects it will check against those. @todo: work with RigidBody objects instead.
  * @return Object An object with properties: body, point @todo make a class for this?
@@ -339,9 +367,9 @@ M3D.Renderer.prototype.clickTest = function(e,targets){
 
 /**
  * @fn setScreenPerpCenter
- * @memberof Renderer
+ * @memberof M3D.Renderer
  * @brief For making mouse movement in a plane perpendicular to the camera direction. Set the starting point.
- * @param Vec3 point
+ * @param M3D.Vec3 point
  */
 M3D.Renderer.prototype.setScreenPerpCenter = function(point){
     this.mouseCenter = hit.point;
@@ -367,7 +395,7 @@ M3D.Renderer.prototype.setScreenPerpCenter = function(point){
 
 /**
  * @fn moveScreenPerp
- * @memberof Renderer
+ * @memberof M3D.Renderer
  * @brief Move the plane movement point in the plane defined using setScreenPerpCenter().
  * @param MouseEvent e
  * @return Vec3 The new point in the plane.
@@ -391,7 +419,7 @@ M3D.Renderer.prototype.moveScreenPerp = function(e){
 
 /**
  * @fn start
- * @memberof Renderer
+ * @memberof M3D.Renderer
  * @brief Start the rendering of the scene.
  */
 M3D.Renderer.prototype.start = function(){
@@ -639,7 +667,7 @@ M3D.Renderer.prototype.updateVisuals = function(){
 
 /**
  * @fn rebuildScene
- * @memberof Renderer
+ * @memberof M3D.Renderer
  * @brief Builds the scene.
  */
 M3D.Renderer.prototype.rebuildScene = function(){
@@ -684,54 +712,7 @@ M3D.Renderer.prototype.rebuildScene = function(){
 	return mesh;
     }
 };/**
- * https://github.com/mrdoob/eventtarget.js/
- */
-
-M3D.EventTarget = function () {
-
-	var listeners = {};
-
-	this.addEventListener = function ( type, listener ) {
-
-		if ( listeners[ type ] == undefined ) {
-
-			listeners[ type ] = [];
-
-		}
-
-		if ( listeners[ type ].indexOf( listener ) === - 1 ) {
-
-			listeners[ type ].push( listener );
-
-		}
-
-	};
-
-	this.dispatchEvent = function ( event ) {
-
-		for ( var listener in listeners[ event.type ] ) {
-
-			listeners[ event.type ][ listener ]( event );
-
-		}
-
-	};
-
-	this.removeEventListener = function ( type, listener ) {
-
-		var index = listeners[ type ].indexOf( listener );
-
-		if ( index !== - 1 ) {
-
-			listeners[ type ].splice( index, 1 );
-
-		}
-
-	};
-
-};
-/**
- * @class World
+ * @class M3D.World
  * @brief A description of a physics world
  * @param RPC.Remote remote
  */
@@ -742,7 +723,7 @@ M3D.World = function(remote){
 
     /**
      * @property RPC.Remote remote
-     * @memberof World
+     * @memberof M3D.World
      * @brief A remote sync RPC object
      */
     this.remote = remote;
@@ -826,18 +807,30 @@ M3D.World = function(remote){
     }
 
     /**
-     * @property array bodies
-     * @memberof World
+     * @property Array bodies
+     * @memberof M3D.World
      */
     this.bodies = [];
+    /**
+     * @property array shapes
+     * @memberof M3D.World
+     */
     this.shapes = [];
     
+    /**
+     * @fn array getShapeById
+     * @memberof M3D.World
+     */
     this.getShapeById = function(id){
 	for(var i=0; i<this.shapes.length; i++)
 	    if(this.shapes[i].id == id)
 		return this.shapes[i];
     }
     
+    /**
+     * @fn array getRigidBodyById
+     * @memberof M3D.World
+     */
     this.getRigidBodyById = function(id){
 	for(var i=0; i<this.bodies.length; i++)
 	    if(this.bodies[i].id == id)
@@ -846,7 +839,7 @@ M3D.World = function(remote){
 
     /**
      * @fn clear
-     * @memberof World
+     * @memberof M3D.World
      * @brief Deletes all bodies
      */
     this.clear = function(){
@@ -854,6 +847,11 @@ M3D.World = function(remote){
 	idCount = 0;
     };
 
+    /**
+     * @fn createSphereShape
+     * @memberof M3D.World
+     * @param float radius
+     */
     this.createSphereShape = function(radius){
 	var s = new M3D.Sphere(radius);
 	s.remote = this.remote;
@@ -868,10 +866,22 @@ M3D.World = function(remote){
 	return s;
     };
 
+    /**
+     * @fn step
+     * @memberof M3D.World
+     * @param float dt
+     * @param function callback
+     */
     this.step = function(dt,callback){
 	this.remote.exec({type:remote.WORLD_STEP,dt:dt},callback);
     };
 
+    /**
+     * @fn createRigidBody
+     * @memberof M3D.World
+     * @param M3D.Shape shape
+     * @param float mass
+     */
     this.createRigidBody = function(shape,mass){
 	var r = new M3D.RigidBody(shape,mass);
 	r.id = idCount++;
@@ -883,6 +893,8 @@ M3D.World = function(remote){
     };
 
     /**
+     * @fn setAllBodyCoordinates
+     * @memberof M3D.World
      * @brief Sets all body coordinates (quats and positions)
      * @param array ids
      * @param array positions
@@ -928,32 +940,38 @@ M3D.World = function(remote){
 
     /**
      * @property bool useQuatCompression
-     * @memberof World
+     * @memberof M3D.World
      * @brief Use 3 values for transferring quats instead of 4
      */
     this.useQuatCompression = true;
 
     /**
      * @property bool sendVelocities
-     * @memberof World
+     * @memberof M3D.World
      * @brief Send body velocities from server to client to be able to interpolate
      */
     this.sendVelocities = true;
 
     /**
      * @property float dt
-     * @memberof World
+     * @memberof M3D.World
      * @brief timestep
      */
     var dt = this.dt = 1/60;
-    this.skip = 3; // How many timesteps to skip per timestep. Set to zero to stream without interpolation
+
+    /**
+     * @property int skip
+     * @memberof M3D.World
+     * @brief How many timesteps to skip per timestep. Set to zero to stream without interpolation
+     */
+    this.skip = 3;
 
     var w = new M3D.Quat();
     var wq = new M3D.Vec3();
 
     /**
      * @fn interpolate
-     * @memberof World
+     * @memberof M3D.World
      * @brief Steps the system by using the current timestep and body velocities. Can with advantage be used in between server-to-client messages to make the simulation look more smooth on the client.
      */
     this.interpolate = function(){
@@ -1017,9 +1035,9 @@ M3D.World.prototype.updateWorldFromJSON = function(json){
 */
 
 /**
- * @class RigidBody
+ * @class M3D.RigidBody
  * @brief Rigid body.
- * @param Shape shape
+ * @param M3D.Shape shape
  */
 M3D.RigidBody = function(shape,mass){
     /**
@@ -1058,10 +1076,23 @@ M3D.RigidBody = function(shape,mass){
      */
     this.rotVelocity = new M3D.Vec3();
 
-    // remote sync object
+    /**
+     * @property RPC.Remote remote
+     * @memberof RigidBody
+     * @brief Remote sync object
+     */
     this.remote = null;
+    /**
+     * @property bool sync
+     * @memberof RigidBody
+     */
     this.sync = true;
 
+    /**
+     * @fn setAutoUpdate
+     * @memberof RigidBody
+     * @param bool autoUpdate
+     */
     this.setAutoUpdate = function(autoUpdate){
 	if(this.sync != autoUpdate){
 	    this.sync = autoUpdate;
@@ -1072,6 +1103,13 @@ M3D.RigidBody = function(shape,mass){
 	}
     };
 
+    /**
+     * @fn setPosition
+     * @memberof RigidBody
+     * @param float x
+     * @param float y
+     * @param float z
+     */
     this.setPosition = function(x,y,z){
 	console.log("set pos of "+this.id);
 	this.remote.exec({type:this.remote.BODY_SETPOSITION,
@@ -1083,7 +1121,7 @@ M3D.RigidBody = function(shape,mass){
 }
 
 /**
- * @class Shape
+ * @class M3D.Shape
  * @brief Base class for shapes.
  * @param int type
  */
@@ -1096,7 +1134,7 @@ M3D.Shape = function(type){
 }
 
 /**
- * @class Box
+ * @class M3D.Box
  * @brief Box shape.
  * @param float ex Half-extents in x.
  * @param float ey Half-extents in y.
@@ -1108,23 +1146,23 @@ M3D.Box = function(ex,ey,ez){
 
     /**
      * @property float ex Half extents in x
-     * @memberof Box
+     * @memberof M3D.Box
      */
     this.ex = ex;
     /**
      * @property float ey Half extents in y
-     * @memberof Box
+     * @memberof M3D.Box
      */
     this.ey = ey;
     /**
      * @property float ez Half extents in z
-     * @memberof Box
+     * @memberof M3D.Box
      */
     this.ez = ez;
 }
 
 /**
- * @class Sphere
+ * @class M3D.Sphere
  * @brief Sphere shape.
  * @param float radius
  */
@@ -1132,20 +1170,29 @@ M3D.Sphere = function(radius){
     M3D.Shape.call(this,M3D.Shape.SPHERE);
     /**
      * @property float radius
-     * @memberof Sphere
+     * @memberof M3D.Sphere
      */
     this.radius = radius;
 }
 
 /**
- * @class Cylinder
+ * @class M3D.Cylinder
  * @brief Cylinder shape.
  * @param float radius
  * @param float height
  */
 M3D.Cylinder = function(radius,height){
     M3D.Shape.call(this,M3D.Shape.CYLINDER);
+
+    /**
+     * @property float radius
+     * @memberof M3D.Cylinder
+     */
     this.radius = radius;
+    /**
+     * @property float height
+     * @memberof M3D.Cylinder
+     */
     this.height = height;
 }
 
@@ -1156,9 +1203,10 @@ M3D.Cylinder = function(radius,height){
 M3D.Shape.BOX = 1;
 M3D.Shape.CYLINDER = 3;
 M3D.Shape.SPHERE = 6;/**
- * @class WebSocketWorld
+ * @class M3D.WebSocketWorld
  * @brief A World being synchronized over a network
  * @param string socketUrl
+ * @extends M3D.World
  */
 M3D.WebSocketWorld = function(socketUrl){
 
@@ -1361,12 +1409,12 @@ this.keyDown = function(keyCode){
 };
 
 M3D.WebSocketWorld.prototype = new M3D.World();/**
- * @class AgxWorld
+ * @class M3D.AgxWorld
  * @brief A World being synchronized with Agx.
  * @param string command The command for starting Agx
  * @param Array flags Flags to be passed when starting agx, e.g. ["filename.lua","--agxOnly"]
- * @param int id A unique id for this session. Used to create unique fifos.
  * @param RPC.Remote remote
+ * @extends M3D.World
  */
 M3D.AgxWorld = function(command,flags,remote){
     M3D.World.call(this,remote);
@@ -1416,7 +1464,12 @@ M3D.AgxWorld = function(command,flags,remote){
     var agxEndEvent = {type:'end'};
     var worldBuffer = [];
     var worldJson = null;
-
+    
+    /**
+     * @fn stepAgx
+     * @memberof M3D.AgxWorld
+     * @brief Step AgX
+     */
     this.stepAgx = function(){
 	if(worldBuffer.length>0){
 	    var data = worldBuffer.shift();
@@ -1446,11 +1499,23 @@ M3D.AgxWorld = function(command,flags,remote){
 	    writeToAgx();
     };
 
+    /**
+     * @fn toJSONString
+     * @memberof M3D.AgxWorld
+     * @brief Get a JSON representation of the world.
+     * @return string
+     */
     this.toJSONString = function(){
 	// Same as in AgX
 	return worldJson;
     };
 
+    /**
+     * @fn toJSON
+     * @memberof M3D.AgxWorld
+     * @brief Get a JSON representation of the world.
+     * @return Object
+     */
     this.toJSON = function(){
 	return JSON.parse(worldJson);
     }
@@ -1583,6 +1648,11 @@ M3D.AgxWorld = function(command,flags,remote){
 	console.log("AgX stderr: ---> "+data.toString()+" <--- ");
     });
 
+    /**
+     * @fn destruct
+     * @memberof M3D.AgxWorld
+     * @brief Kills the external AgX process
+     */
     this.destruct = function(){
 	agx.kill('SIGHUP');
 	killed = true;
@@ -1699,7 +1769,7 @@ M3D.AgxWorld = function(command,flags,remote){
 };
 
 M3D.AgxWorld.prototype = new M3D.World();/**
- * @class TimeStats
+ * @class M3D.TimeStats
  * @param int historyMax
  * @brief Class for keeping track of stats of some kind
  */
@@ -1795,7 +1865,15 @@ RPC.Remote = function(connection){
     var EMPTYRESULT =           this.EMPTYRESULT =           8;
     var REPORT =                this.REPORT =                9;
 
+    /**
+     * @property M3D.TimeStats downStats
+     * @memberof RPC.Remote
+     */
     this.downStats = new M3D.TimeStats();
+    /**
+     * @property M3D.TimeStats upStats
+     * @memberof RPC.Remote
+     */
     this.upStats = new M3D.TimeStats();
 
     RPC.EventTarget.call(this);
@@ -1856,7 +1934,13 @@ RPC.Remote = function(connection){
     } else
 	throw new Error("Connection type not recognized.");
 
-    // Projects data onto an arraybuffer and returns it
+    /**
+     * @fn marshal
+     * @memberof RPC.Remote
+     * @brief Projects data onto an arraybuffer and returns it
+     * @param Object message
+     * @return ArrayBuffer
+     */ 
     this.marshal = function(message){
 	var headlen = 4*2; // id,type as 2 int32's
 	var i32view, f32view, i8view, ui8view, i16view;
@@ -1948,7 +2032,13 @@ RPC.Remote = function(connection){
 	//return data;
     }
 
-    // Must return an object with properties type and id
+    /**
+     * @fn unmarshal
+     * @memberof RPC.Remote
+     * @brief Converts back a message from an arraybuffer
+     * @param ArrayBuffer data
+     * @return Object
+     */ 
     this.unmarshal = function(data){
 	//var message = JSON.parse(data); // todo: use binary array buffers
 
@@ -2148,7 +2238,8 @@ RPC.EventTarget = function () {
 };
 
 /**
- * Lossy compress a float number into an integer.
+ * @fn RPC.compress
+ * @brief Lossy compress a float number into an integer.
  * @param float num The number to compress
  * @param string type 'uint8', 'int8', 'uint16', 'int16', 'int32' or 'uint32'
  * @param float mini Optional. Minimum value of your number.
@@ -2172,12 +2263,13 @@ RPC.compress = function(num,type,mini,maxi,clamp){
 };
 
 /**
- * Uncompress an integer into a float.
+ * @fn RPC.uncompress
+ * @brief Uncompress an integer into a float.
  * @param int num The number to uncompress
  * @param string type See compress()
  * @param float mini See compress()
  * @param float maxi See compress()
- * @return int
+ * @return float
  */
 RPC.uncompress = function(num,type,mini,maxi){
     var mm = maxmin(type);

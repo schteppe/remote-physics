@@ -1,5 +1,5 @@
 /**
- * @class TimeStats
+ * @class M3D.TimeStats
  * @param int historyMax
  * @brief Class for keeping track of stats of some kind
  */

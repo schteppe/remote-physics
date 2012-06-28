@@ -1,29 +1,29 @@
 /**
- * @class Vec3
+ * @class M3D.Vec3
  * @brief Vector class.
  */
 M3D.Vec3 = function(x,y,z){
     /**
      * @property float x
-     * @memberof Vec3
+     * @memberof M3D.Vec3
      */
     this.x = x===undefined ? 0 : x;
 
     /**
      * @property float y
-     * @memberof Vec3
+     * @memberof M3D.Vec3
      */
     this.y = y===undefined ? 0 : y;
 
     /**
      * @property float z
-     * @memberof Vec3
+     * @memberof M3D.Vec3
      */
     this.z = z===undefined ? 0 : z;
 
     /**
      * @fn set
-     * @memberof Vec3
+     * @memberof M3D.Vec3
      * @param float x
      * @param float y
      * @param float z
@@ -34,17 +34,22 @@ M3D.Vec3 = function(x,y,z){
 	this.z=z;
     }
 
+    /**
+     * @fn dot
+     * @memberof M3D.Vec3
+     * @param M3D.Vec3 v
+     */
     this.dot = function(v){
 	return this.x*v.x + this.y*v.y + this.z*v.z;
     }
 
     /**
      * @fn cross
-     * @memberof CANNON.Vec3
+     * @memberof M3D.Vec3
      * @brief Vector cross product
-     * @param CANNON.Vec3 v
-     * @param CANNON.Vec3 target Optional. Target to save in.
-     * @return CANNON.Vec3
+     * @param M3D.Vec3 v
+     * @param M3D.Vec3 target Optional. Target to save in.
+     * @return M3D.Vec3
      */
     this.cross = function(v,target){
 	target = target || new M3D.Vec3();
@@ -58,12 +63,22 @@ M3D.Vec3 = function(x,y,z){
 	return target;
     };
 
+    /**
+     * @fn copy
+     * @memberof M3D.Vec3
+     * @param M3D.Vec3 target
+     */
     this.copy = function ( target ) {
 	target.x = this.x;
 	target.y = this.y;
 	target.z = this.z;
     }
 
+    /**
+     * @fn toString
+     * @memberof M3D.Vec3
+     * @return string
+     */
     this.toString = function(){
 	return "("+[this.x,this.y,this.z].join(",")+")";
     };
