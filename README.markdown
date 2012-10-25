@@ -15,7 +15,7 @@ Install all NPM dependencies by running
 npm install -d
 ```
 
-Then copy config-sample.js to config.php and edit it so it fits your environment.
+Then copy config-sample.js to config.js and edit it so it fits your environment.
 
 To start the app, run
 ```
