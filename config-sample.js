@@ -15,6 +15,7 @@ exports.agxMaxInstances = 4;
 exports.port = 3000;
 exports.host = "your.domain.com";
 exports.public_root = "http://"+exports.host+":"+exports.port;
+exports.websocket_url = "ws://"+exports.host+":"+exports.port;
 
 // Site settings
 exports.title = "3D Remote Physics";

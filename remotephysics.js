@@ -41,6 +41,7 @@ app.get(/^\/demos\/([a-z]+\.lua)$/, function(req, res){
 	    res.render('demo',{
 		title:config.title,
 		public_root:config.public_root,
+		websocket_url:config.websocket_url,
 		websocketport:config.port,
 		websockethost:config.host,
 	    });
@@ -82,10 +83,11 @@ console.log("Express server listening on port "+config.port);
 var wss = new WebSocketServer({httpServer: server});
 var idCounter = 0;
 wss.on('request', function(req){
-
+    console.log("WS request from "+req.origin);
     if(connections.length >= config.agxMaxInstances ||  // Reject if we have too many agx instances
        req.origin.indexOf(config.host) == -1) {         // Or if the client isn't on our website
 	req.reject(null, req.origin);
+	console.log("Rejected WS request from "+req.origin);
 	return;
     }
 

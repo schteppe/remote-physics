@@ -211,13 +211,13 @@ function nodeSync(sim,keyCallbacks,title,description)
    end
    data = "["..table.concat(data,",").."]"
 
-   local debugf = io.open("/tmp/json.txt", "w")
-   debugf:write(table.json(json).."\n")
-   debugf:close()
+   --local debugf = io.open("/tmp/json.txt", "w")
+   --debugf:write(table.json(json).."\n")
+   --debugf:close()
 
-   debugf = io.open("/tmp/json2.txt", "w")
-   debugf:write(data.."\n")
-   debugf:close()
+   --debugf = io.open("/tmp/json2.txt", "w")
+   --debugf:write(data.."\n")
+   --debugf:close()
 
    --data = string.gsub(data,"0+ "," ")
    --data = string.gsub(data,"0+$","")

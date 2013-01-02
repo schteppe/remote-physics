@@ -16,7 +16,7 @@
     <script>
 $(document).ready(function () {
 
-    var world = new M3D.WebSocketWorld("ws://<%=websockethost%>:<%=websocketport%>");
+    var world = new M3D.WebSocketWorld("<%=websocket_url%>");
     var renderer = new M3D.Renderer(world);
     renderer.start();
 
