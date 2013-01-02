@@ -7,3 +7,6 @@ node_modules
 
 # The personal config file
 config.js
+
+# Log files
+*.log
